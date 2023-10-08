@@ -1,0 +1,24 @@
+// Copyright 2023 Petr Petrov. All rights reserved.
+// License: https://github.com/PetrPPetrov/gkm-local/blob/main/LICENSE
+
+#pragma once
+
+#include "game_logic.h"
+#include "block.h"
+
+struct BlockOperation {
+    bool put_block;
+    bool use_level = false;
+    std::uint8_t level = 0;
+    BlockMaterialType material;
+    GlobalCoordinateType x;
+    GlobalCoordinateType y;
+    GlobalCoordinateType z;
+};
+
+void startBlockOperationThread();
+void finishBlockOperationThread();
+void postBlockOperation(const BlockOperation& block_operation);
+
+template <std::uint8_t Level>
+typename Block<Level>::Ptr getBlockCached(const typename Block<Level>::Ptr& block); // TODO: Not thread safe right now
