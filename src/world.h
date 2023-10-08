@@ -18,7 +18,7 @@ constexpr BlockIndexType VIEW_DISTANCE = 8;
 class WorldColumn {
     static_assert(std::atomic<bool>::is_always_lock_free);
 
-    MutexFreeCompound<TopLevelBlock::Ptr> blocks[WORLD_BLOCK_HEIGHT];
+    SpinLocked<TopLevelBlock::Ptr> blocks[WORLD_BLOCK_HEIGHT];
 
 public:
     typedef std::shared_ptr<WorldColumn> Ptr;
@@ -51,37 +51,33 @@ public:
 
     WorldColumn::Ptr getColumnByAbsoluteIndex(BlockIndexType y) const {
         WorldColumn::Ptr result = nullptr;
-        doLocked(columns_locked, [this, y, &result](){
-            const BlockIndexType index_y = y - base_y;
-            if (index_y >= 0 && index_y < columns.size()) {
-                result = columns[index_y];
-            }
-        });
+        SpinLock columns_lock(columns_locked);
+        const BlockIndexType index_y = y - base_y;
+        if (index_y >= 0 && index_y < columns.size()) {
+            result = columns[index_y];
+        }
         return result;
     }
     void setColumnByAbsoluteIndex(BlockIndexType y, const WorldColumn::Ptr& column) {
-        doLocked(columns_locked, [this, y, &column](){
-            const BlockIndexType index_y = y - base_y;
-            if (index_y >= 0 && index_y < columns.size()) {
-                columns[index_y] = column;
-            }
-        });
+        SpinLock columns_lock(columns_locked);
+        const BlockIndexType index_y = y - base_y;
+        if (index_y >= 0 && index_y < columns.size()) {
+            columns[index_y] = column;
+        }
     }
     WorldColumn::Ptr getColumn(BlockIndexType index_y) const {
         WorldColumn::Ptr result = nullptr;
-        doLocked(columns_locked, [this, index_y, &result]() {
-            if (index_y >= 0 && index_y < columns.size()) {
-                result = columns[index_y];
-            }
-        });
+        SpinLock columns_lock(columns_locked);
+        if (index_y >= 0 && index_y < columns.size()) {
+            result = columns[index_y];
+        }
         return result;
     }
     void setColumn(BlockIndexType index_y, const WorldColumn::Ptr& column) {
-        doLocked(columns_locked, [this, index_y, &column]() {
-            if (index_y >= 0 && index_y < columns.size()) {
-                columns[index_y] = column;
-            }
-        });
+        SpinLock columns_lock(columns_locked);
+        if (index_y >= 0 && index_y < columns.size()) {
+            columns[index_y] = column;
+        }
     }
 };
 
@@ -99,37 +95,33 @@ public:
 
     WorldLineY::Ptr getLineByAbsoluteIndex(BlockIndexType x) const {
         WorldLineY::Ptr result = nullptr;
-        doLocked(lines_locked, [this, &result, x](){
-            const BlockIndexType index_x = x - base_x;
-            if (index_x >= 0 && index_x < lines.size()) {
-                result = lines[index_x];
-            }
-        });
+        SpinLock lines_lock(lines_locked);
+        const BlockIndexType index_x = x - base_x;
+        if (index_x >= 0 && index_x < lines.size()) {
+            result = lines[index_x];
+        }
         return result;
     }
     void setLineByAbsoluteIndex(BlockIndexType x, const WorldLineY::Ptr& line) {
-        doLocked(lines_locked, [this, x, &line]() {
-            const BlockIndexType index_x = x - base_x;
-            if (index_x >= 0 && index_x < lines.size()) {
-                lines[index_x] = line;
-            }
-        });
+        SpinLock lines_lock(lines_locked);
+        const BlockIndexType index_x = x - base_x;
+        if (index_x >= 0 && index_x < lines.size()) {
+            lines[index_x] = line;
+        }
     }
     WorldLineY::Ptr getLine(BlockIndexType index_x) const {
         WorldLineY::Ptr result = nullptr;
-        doLocked(lines_locked, [this, &result, index_x]() {
-            if (index_x >= 0 && index_x < lines.size()) {
-                result = lines[index_x];
-            }
-        });
+        SpinLock lines_lock(lines_locked);
+        if (index_x >= 0 && index_x < lines.size()) {
+            result = lines[index_x];
+        }
         return result;
     }
     void setLine(BlockIndexType index_x, const WorldLineY::Ptr& line) {
-        doLocked(lines_locked, [this, index_x, &line]() {
-            if (index_x >= 0 && index_x < lines.size()) {
-                lines[index_x] = line;
-            }
-        });
+        SpinLock lines_lock(lines_locked);
+        if (index_x >= 0 && index_x < lines.size()) {
+            lines[index_x] = line;
+        }
     }
 };
 

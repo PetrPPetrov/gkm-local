@@ -10,15 +10,14 @@
 #include "fnv_hash.h"
 #include "block.h"
 #include "world.h"
-#include "mutex_free_compound.h"
-#include "mutex_free_fifo.h"
+#include "request_queue.h"
 #include "tessellation.h"
 #include "block_operation.h"
 
 const static boost::posix_time::milliseconds BLOCK_OPERATION_WAKE_UP_TIME_INTERVAL(250);
 
 static std::unique_ptr<std::thread> g_block_operation_thread = nullptr;
-static MutexFreeFifo<BlockOperation> g_block_operation_queue;
+static RequestQueue<BlockOperation> g_block_operation_queue;
 static std::unique_ptr<boost::asio::io_service> g_io_service;
 static std::unique_ptr<boost::asio::deadline_timer> g_timer;
 

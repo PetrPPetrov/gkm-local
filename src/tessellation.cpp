@@ -11,8 +11,7 @@
 #include "fnv_hash.h"
 #include "main.h"
 #include "world.h"
-#include "mutex_free_compound.h"
-#include "mutex_free_fifo.h"
+#include "request_queue.h"
 #include "tessellation.h"
 
 const static boost::posix_time::milliseconds TESSELLATION_WAKE_UP_TIME_INTERVAL(250);
@@ -25,7 +24,7 @@ static std::unique_ptr<std::thread>& getTessellationThread() {
 }
 
 template <std::uint8_t Level>
-using TessellationRequestsQueue = MutexFreeFifo<TessellationRequest<Level>, TESSELLATION_REQUEST_BUFFER_SIZE>;
+using TessellationRequestsQueue = RequestQueue<TessellationRequest<Level>, TESSELLATION_REQUEST_BUFFER_SIZE>;
 
 template <std::uint8_t Level>
 static TessellationRequestsQueue<Level>& getTessellationRequestQueue() {

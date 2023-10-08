@@ -6,13 +6,13 @@
 #include <boost/asio/impl/src.hpp>
 #include <boost/asio.hpp>
 #include "main.h"
-#include "mutex_free_fifo.h"
+#include "request_queue.h"
 #include "block_operation.h"
 #include "game_logic.h"
 
 PlayerCoordinates::Atomic g_player_coordinates;
 
-static MutexFreeFifo<DirectionPitchDelta> g_direction_pitch_delta_queue;
+static RequestQueue<DirectionPitchDelta> g_direction_pitch_delta_queue;
 
 static std::unique_ptr<std::thread> g_game_logic_thread = nullptr;
 static std::unique_ptr<boost::asio::io_service> g_io_service;

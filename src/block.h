@@ -9,7 +9,7 @@
 #include "draw_info.h"
 #include "fnv_hash.h"
 #include "game_logic.h"
-#include "mutex_free_compound.h"
+#include "spin_lock.h"
 #include "constants.sh"
 
 typedef GlobalCoordinateType BlockIndexType;
@@ -37,7 +37,7 @@ struct Block<0> {
     std::atomic<bool> entire = true;
     std::atomic<BlockMaterialType> material = 0;
     std::atomic<BlockMaterialType> materials[MATERIAL_COUNT] = { 0 };
-    MutexFreeCompound<BlockDrawInfo::Ptr> draw_info;
+    SpinLocked<BlockDrawInfo::Ptr> draw_info;
     std::list<DrawInstanceInfo> draw_instance_info;
 
     Block(BlockMaterialType material_ = 0) {
@@ -92,8 +92,8 @@ struct Block
 
     std::atomic<bool> entire = true;
     std::atomic<BlockMaterialType> material = 0;
-    MutexFreeCompound<typename Block<Level-1>::Ptr> children[CHILDREN_COUNT] = { nullptr };
-    MutexFreeCompound<BlockDrawInfo::Ptr> draw_info;
+    SpinLocked<typename Block<Level-1>::Ptr> children[CHILDREN_COUNT] = { nullptr };
+    SpinLocked<BlockDrawInfo::Ptr> draw_info;
     std::list<DrawInstanceInfo> draw_instance_info;
 
     Block(BlockMaterialType material_ = 0) {

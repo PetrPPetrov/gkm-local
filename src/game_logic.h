@@ -4,7 +4,7 @@
 #pragma once
 
 #include <boost/date_time/posix_time/posix_time_types.hpp>
-#include "mutex_free_compound.h"
+#include "spin_lock.h"
 
 constexpr float GKM_PI = 3.14159265358979323846264338327950288f;
 constexpr float GKM_2PI = 2 * GKM_PI;
@@ -22,7 +22,7 @@ struct PlayerCoordinates {
     GlobalCoordinateType direction = 0; // In degrees between 0 and 359
     GlobalCoordinateType pitch = 0; // In degrees between -90 and 90
 
-    typedef WaitFreeCompound<PlayerCoordinates> Atomic;
+    typedef SpinLocked<PlayerCoordinates> Atomic;
 };
 
 extern PlayerCoordinates::Atomic g_player_coordinates;
