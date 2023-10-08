@@ -16,7 +16,10 @@
 #include "imgui/imgui.h"
 
 template<class BgfxType>
-struct BgfxHandleHolder {
+class BgfxHandleHolder {
+    BgfxType bgfx_handle;
+
+public:
     BgfxHandleHolder(BgfxType bgfx_handle_) : bgfx_handle(bgfx_handle_) {}
     ~BgfxHandleHolder() {
         bgfx::destroy(bgfx_handle);
@@ -27,8 +30,6 @@ struct BgfxHandleHolder {
     bool isValid() const {
         return bgfx::isValid(bgfx_handle);
     }
-private:
-    BgfxType bgfx_handle;
 };
 
 template<class BgfxType>
@@ -54,13 +55,18 @@ typedef BgfxSharedPtr<bgfx::ProgramHandle> BgfxProgramPtr;
 typedef BgfxSharedPtr<bgfx::UniformHandle> BgfxUniformPtr;
 typedef BgfxSharedPtr<bgfx::TextureHandle> BgfxTexturePtr;
 
-struct BgfxEngineShutdown {
+class BgfxEngineShutdown {
+public:
     ~BgfxEngineShutdown() {
         bgfx::shutdown();
     }
 };
 
-struct BxAlloc {
+class BxAlloc {
+    bx::AllocatorI* allocator;
+    void* allocated_data;
+
+public:
     BxAlloc(bx::AllocatorI* allocator_, std::uint32_t size) : allocator(allocator_) {
         allocated_data = bx::alloc(allocator, size);
     }
@@ -70,9 +76,6 @@ struct BxAlloc {
     void* get() const {
         return allocated_data;
     }
-private:
-    bx::AllocatorI* allocator;
-    void* allocated_data;
 };
 
 #pragma pack(push, 1)

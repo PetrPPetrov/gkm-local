@@ -8,7 +8,7 @@
 #include <memory>
 #include <deque>
 #include "block.h"
-#include "atomic_lock.h"
+#include "spin_lock.h"
 
 constexpr BlockIndexType WORLD_BLOCK_HEIGHT = 16;
 constexpr BlockIndexType WORLD_BLOCK_SIZE_X = 64;

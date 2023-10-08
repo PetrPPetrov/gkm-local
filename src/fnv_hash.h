@@ -7,7 +7,8 @@
 #include <cstdint>
 
 // Fowler / Noll / Vo (FNV) Hash
-struct FnvHash {
+class FnvHash {
+public:
     typedef std::uint64_t Hash;
 
     void update(const std::uint8_t* data, std::size_t size) {

@@ -255,8 +255,10 @@ void finishTessellationThreads() {
 
 template <std::uint8_t Level>
 void postBlockTessellationRequest(const TessellationRequest<Level>& request) {
-    BlockMaterialType material = request.block->material;
-    getTessellationRequestQueue<Level>().push(request);
+    if (!request.block->tessellation_request) {
+        request.block->tessellation_request = true;
+        getTessellationRequestQueue<Level>().push(request);
+    }
 }
 
 template <std::uint8_t Level>

@@ -14,7 +14,37 @@
 
 typedef GlobalCoordinateType BlockIndexType;
 
-constexpr std::int32_t NESTED_BLOCKS = 8;
+static_assert(std::atomic<bool>::is_always_lock_free);
+static_assert(std::atomic<BlockMaterialType>::is_always_lock_free);
+
+// Base class for representing blocks in this game.
+struct BlockBase {
+    // Indicates that the entire block is filled by one material (or entire empty).
+    std::atomic<bool> entire = true;
+    // Specifies the material for this block. Usefull only if entire is true.
+    std::atomic<BlockMaterialType> material = 0;
+
+    // Indicates that tessellation request was sent for this block.
+    std::atomic<bool> tessellation_request = false;
+    // Contains pre-tessellated vertex buffers for rendering by BGFX.
+    SpinLocked<BlockDrawInfo::Ptr> draw_info;
+    // Collects information for instance drawing. It is used only by single rendering thread.
+    // So, no multi-threaded synchronization is required.
+    std::list<DrawInstanceInfo> draw_instance_info;
+
+    BlockBase(BlockMaterialType material_ = 0) {
+        material = material_;
+    }
+
+    BlockBase(const BlockBase& other) {
+        entire = other.entire.load();
+        if (entire) {
+            material = other.material.load();
+        }
+    }
+};
+
+constexpr GlobalCoordinateType NESTED_BLOCKS = 8;
 
 // Level 0 = 8 cm
 // Level 1 = 64 cm
@@ -25,30 +55,19 @@ template <std::uint8_t Level>
 struct Block;
 
 template <>
-struct Block<0> {
-    static_assert(std::atomic<bool>::is_always_lock_free);
-    static_assert(std::atomic<BlockMaterialType>::is_always_lock_free);
-
+struct Block<0> : public BlockBase {
     typedef std::shared_ptr<Block<0>> Ptr;
     typedef std::weak_ptr<Block<0>> WeakPtr;
-    constexpr static std::int32_t MATERIAL_COUNT = NESTED_BLOCKS * NESTED_BLOCKS * NESTED_BLOCKS;
+    constexpr static GlobalCoordinateType MATERIAL_COUNT = NESTED_BLOCKS * NESTED_BLOCKS * NESTED_BLOCKS;
     constexpr static GlobalCoordinateType SIZE = NESTED_BLOCKS;
 
-    std::atomic<bool> entire = true;
-    std::atomic<BlockMaterialType> material = 0;
     std::atomic<BlockMaterialType> materials[MATERIAL_COUNT] = { 0 };
-    SpinLocked<BlockDrawInfo::Ptr> draw_info;
-    std::list<DrawInstanceInfo> draw_instance_info;
 
-    Block(BlockMaterialType material_ = 0) {
-        material = material_;
+    Block(BlockMaterialType material_ = 0) : BlockBase(material_) {
     }
 
-    Block(const Block<0>& other) {
-        entire = other.entire.load();
-        if (entire) {
-            material = other.material.load();
-        } else {
+    Block(const Block<0>& other) : BlockBase(other) {
+        if (!entire) {
             for (std::int32_t i = 0; i < MATERIAL_COUNT; ++i) {
                 materials[i] = other.materials[i].load();
             }
@@ -80,31 +99,20 @@ struct Block<0> {
 };
 
 template <std::uint8_t Level>
-struct Block
+struct Block : public BlockBase
 {
-    static_assert(std::atomic<bool>::is_always_lock_free);
-    static_assert(std::atomic<BlockMaterialType>::is_always_lock_free);
-
     typedef std::shared_ptr<Block<Level>> Ptr;
     typedef std::weak_ptr<Block<Level>> WeakPtr;
-    constexpr static std::int32_t CHILDREN_COUNT = NESTED_BLOCKS * NESTED_BLOCKS * NESTED_BLOCKS;
+    constexpr static GlobalCoordinateType CHILDREN_COUNT = NESTED_BLOCKS * NESTED_BLOCKS * NESTED_BLOCKS;
     constexpr static GlobalCoordinateType SIZE = NESTED_BLOCKS * Block<Level - 1>::SIZE;
 
-    std::atomic<bool> entire = true;
-    std::atomic<BlockMaterialType> material = 0;
     SpinLocked<typename Block<Level-1>::Ptr> children[CHILDREN_COUNT] = { nullptr };
-    SpinLocked<BlockDrawInfo::Ptr> draw_info;
-    std::list<DrawInstanceInfo> draw_instance_info;
 
-    Block(BlockMaterialType material_ = 0) {
-        material = material_;
+    Block(BlockMaterialType material_ = 0) : BlockBase(material_) {
     }
 
-    Block(const Block<Level>& other) {
-        entire = other.entire.load();
-        if (entire) {
-            material = other.material.load();
-        } else {
+    Block(const Block<Level>& other) : BlockBase(other) {
+        if (!entire) {
             for (std::int32_t i = 0; i < Block<Level>::CHILDREN_COUNT; ++i) {
                 children[i].write(other.children[i].read());
             }

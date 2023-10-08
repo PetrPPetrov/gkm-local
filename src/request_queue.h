@@ -16,6 +16,7 @@ class RequestQueue {
     mutable std::atomic<bool> locked_flag = false;
     std::uint32_t head_index = 0;
     std::uint32_t tail_index = 0;
+    std::uint32_t size = 0;
     RequestType requests[BufferSize];
 
 public:
@@ -27,7 +28,7 @@ public:
     }
     bool peek(RequestType& request) const noexcept {
         SpinLock lock(locked_flag);
-        if (head_index == tail_index) {
+        if (size == 0) {
             return false;
         }
         request = requests[head_index];
@@ -35,22 +36,18 @@ public:
     }
     void pop() noexcept {
         SpinLock lock(locked_flag);
-        if (head_index == tail_index) {
+        if (size == 0) {
             return;
         }
         head_index = static_cast<std::uint32_t>((head_index + 1) % BufferSize);
+        --size;
     }
     void push(const RequestType& new_request) noexcept {
         SpinLock lock(locked_flag);
-        const std::uint32_t cur_tail_index = tail_index;
-        const std::uint32_t new_tail_index = (cur_tail_index + 1) % BufferSize;
-        if (new_tail_index != head_index) {
-            requests[cur_tail_index] = new_request;
-            tail_index = new_tail_index;
-        }
-        else {
-            assert(false);
-        }
+        assert(size < BufferSize);
+        requests[tail_index] = new_request;
+        tail_index = (tail_index + 1) % BufferSize;
+        ++size;
         lock.unlock();
         new_requests.notify_one();
     }

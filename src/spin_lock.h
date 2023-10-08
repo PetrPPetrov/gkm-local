@@ -19,7 +19,7 @@ public:
             if (locked_flag.compare_exchange_strong(cur_locked_value, true)) {
                 break;
             }
-        } while (cur_locked_value); // Wait in loop while locked_flag is still locked
+        } while (cur_locked_value); // Spin (wait) in loop while locked_flag is still locked.
     }
     ~SpinLock() noexcept {
         locked_flag = false;
