@@ -23,8 +23,7 @@ static std::uint32_t g_tick = 0;
 static void gameStep(const boost::system::error_code& error) {
     auto player_coordinates = g_player_coordinates.read();
     DirectionPitchDelta delta;
-    while (g_direction_pitch_delta_queue.peek(delta)) {
-        g_direction_pitch_delta_queue.pop();
+    while (g_direction_pitch_delta_queue.pop(delta)) {
         player_coordinates.direction += delta.direction;
         player_coordinates.direction %= 360;
         if (player_coordinates.direction < 0) {

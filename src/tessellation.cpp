@@ -205,9 +205,8 @@ static void processTessellationRequests(const boost::system::error_code& error) 
     SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN);
 
     TessellationRequest<Level> request;
-    while (getTessellationRequestQueue<Level>().peek(request) && g_is_running) {
+    while (getTessellationRequestQueue<Level>().pop(request) && g_is_running) {
         processTessellationRequest<Level>(request);
-        getTessellationRequestQueue<Level>().pop();
     }
     if (g_is_running) {
         getDeadlineTimer<Level>()->expires_at(getDeadlineTimer<Level>()->expires_at() + TESSELLATION_WAKE_UP_TIME_INTERVAL);
@@ -215,8 +214,7 @@ static void processTessellationRequests(const boost::system::error_code& error) 
     } else {
         // Clean up tessellation request queue
         TessellationRequest<Level> request;
-        while (getTessellationRequestQueue<Level>().peek(request)) {
-            getTessellationRequestQueue<Level>().pop();
+        while (getTessellationRequestQueue<Level>().pop(request)) {
         }
     }
 

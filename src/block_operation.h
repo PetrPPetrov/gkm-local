@@ -7,13 +7,12 @@
 #include "block.h"
 
 struct BlockOperation {
+    bool finish_flag = false;
     bool put_block;
     bool use_level = false;
     std::uint8_t level = 0;
     BlockMaterialType material;
-    GlobalCoordinateType x;
-    GlobalCoordinateType y;
-    GlobalCoordinateType z;
+    GlobalCoordinateType x, y, z;
 };
 
 void startBlockOperationThread();

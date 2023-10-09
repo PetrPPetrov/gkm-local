@@ -20,27 +20,21 @@ class RequestQueue {
     RequestType requests[BufferSize];
 
 public:
-    void waitForNewRequests(RequestType& request) const noexcept {
+    void waitForNewRequests(RequestType& request) noexcept {
         std::unique_lock wait_lock(wait_mutex);
-        while (!peek(request)) {
+        while (!pop(request)) {
             new_requests.wait(wait_lock);
         }
     }
-    bool peek(RequestType& request) const noexcept {
+    bool pop(RequestType& request) noexcept {
         SpinLock lock(locked_flag);
         if (size == 0) {
             return false;
         }
         request = requests[head_index];
-        return true;
-    }
-    void pop() noexcept {
-        SpinLock lock(locked_flag);
-        if (size == 0) {
-            return;
-        }
         head_index = static_cast<std::uint32_t>((head_index + 1) % BufferSize);
         --size;
+        return true;
     }
     void push(const RequestType& new_request) noexcept {
         SpinLock lock(locked_flag);

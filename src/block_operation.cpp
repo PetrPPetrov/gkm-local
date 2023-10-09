@@ -4,8 +4,6 @@
 #include <cstdint>
 #include <unordered_map>
 #include <thread>
-#include <boost/asio.hpp>
-#include <boost/date_time/posix_time/posix_time_types.hpp>
 #include "main.h"
 #include "fnv_hash.h"
 #include "block.h"
@@ -14,12 +12,8 @@
 #include "tessellation.h"
 #include "block_operation.h"
 
-const static boost::posix_time::milliseconds BLOCK_OPERATION_WAKE_UP_TIME_INTERVAL(250);
-
 static std::unique_ptr<std::thread> g_block_operation_thread = nullptr;
 static RequestQueue<BlockOperation> g_block_operation_queue;
-static std::unique_ptr<boost::asio::io_service> g_io_service;
-static std::unique_ptr<boost::asio::deadline_timer> g_timer;
 
 template <std::uint8_t Level>
 using BlockCache = std::unordered_map<FnvHash::Hash, typename Block<Level>::WeakPtr>;
@@ -224,6 +218,11 @@ static inline void removeBlock(
 }
 
 static inline void processBlockOperation(const BlockOperation& block_operation) {
+    if (block_operation.finish_flag) {
+        // Ignore this block operation request.
+        return;
+    }
+
     BlockIndexType local_x;
     BlockIndexType local_y;
     BlockIndexType local_z;
@@ -242,42 +241,27 @@ static inline void processBlockOperation(const BlockOperation& block_operation) 
             }
         }
     }
-    g_block_operation_queue.pop();
-}
-
-static void processBlockOperations(const boost::system::error_code& error) {
-    SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN);
-
-    BlockOperation block_operation;
-    while (g_block_operation_queue.peek(block_operation) && g_is_running) {
-        processBlockOperation(block_operation);
-        initializeCacheCleaningIterators();
-    }
-
-    for (unsigned i = 0; i < WORLD_BLOCK_SIZE_X && g_is_running; ++i) {
-        cleanUpCaches();
-    }
-
-    if (g_is_running) {
-        g_timer->expires_at(g_timer->expires_at() + BLOCK_OPERATION_WAKE_UP_TIME_INTERVAL);
-        g_timer->async_wait(&processBlockOperations);
-    } else {
-        // Clean up tessellation request queue
-        BlockOperation block_operation;
-        while (g_block_operation_queue.peek(block_operation)) {
-            g_block_operation_queue.pop();
-        }
-    }
-
-    SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_END);
 }
 
 static void blockOperationThread() {
     initializeCacheCleaningIterators();
-    g_io_service = std::make_unique<boost::asio::io_service>();
-    g_timer = std::make_unique<boost::asio::deadline_timer>(*g_io_service, BLOCK_OPERATION_WAKE_UP_TIME_INTERVAL);
-    g_timer->async_wait(&processBlockOperations);
-    g_io_service->run();
+
+    SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN);
+
+    while (g_is_running) {
+        BlockOperation block_operation;
+        g_block_operation_queue.waitForNewRequests(block_operation);
+        do {
+            processBlockOperation(block_operation);
+            initializeCacheCleaningIterators();
+        } while (g_block_operation_queue.pop(block_operation) && g_is_running);
+
+        for (BlockIndexType i = 0; i < WORLD_BLOCK_SIZE_X && g_is_running; ++i) {
+            cleanUpCaches();
+        }
+    }
+
+    SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_END);
 }
 
 void startBlockOperationThread() {
@@ -285,7 +269,11 @@ void startBlockOperationThread() {
 }
 
 void finishBlockOperationThread() {
+    BlockOperation wakeup_and_finish_operation;
+    wakeup_and_finish_operation.finish_flag = true;
+    postBlockOperation(wakeup_and_finish_operation);
     g_block_operation_thread->join();
+    g_block_operation_thread.reset();
 }
 
 void postBlockOperation(const BlockOperation& block_operation) {
