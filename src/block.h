@@ -6,16 +6,14 @@
 #include <cstdint>
 #include <atomic>
 #include <memory>
+#include "gkm_local.h"
 #include "draw_info.h"
 #include "fnv_hash.h"
 #include "game_logic.h"
 #include "spin_lock.h"
 #include "constants.sh"
 
-typedef GlobalCoordinateType BlockIndexType;
-
 static_assert(std::atomic<bool>::is_always_lock_free);
-static_assert(std::atomic<BlockMaterialType>::is_always_lock_free);
 
 // Base class for representing blocks in this game.
 struct BlockBase {
@@ -44,7 +42,7 @@ struct BlockBase {
     }
 };
 
-constexpr GlobalCoordinateType NESTED_BLOCKS = 8;
+constexpr BlockIndexType NESTED_BLOCKS = 8;
 
 // Level 0 = 8 cm
 // Level 1 = 64 cm
@@ -58,8 +56,8 @@ template <>
 struct Block<0> : public BlockBase {
     typedef std::shared_ptr<Block<0>> Ptr;
     typedef std::weak_ptr<Block<0>> WeakPtr;
-    constexpr static GlobalCoordinateType MATERIAL_COUNT = NESTED_BLOCKS * NESTED_BLOCKS * NESTED_BLOCKS;
-    constexpr static GlobalCoordinateType SIZE = NESTED_BLOCKS;
+    constexpr static BlockIndexType MATERIAL_COUNT = NESTED_BLOCKS * NESTED_BLOCKS * NESTED_BLOCKS;
+    constexpr static BlockIndexType SIZE = NESTED_BLOCKS;
 
     std::atomic<BlockMaterialType> materials[MATERIAL_COUNT] = { 0 };
 
@@ -68,13 +66,13 @@ struct Block<0> : public BlockBase {
 
     Block(const Block<0>& other) : BlockBase(other) {
         if (!entire) {
-            for (std::int32_t i = 0; i < MATERIAL_COUNT; ++i) {
+            for (BlockIndexType i = 0; i < MATERIAL_COUNT; ++i) {
                 materials[i] = other.materials[i].load();
             }
         }
     }
 
-    BlockMaterialType getMaterial(GlobalCoordinateType x, GlobalCoordinateType y, GlobalCoordinateType z) const {
+    BlockMaterialType getMaterial(BlockIndexType x, BlockIndexType y, BlockIndexType z) const {
         if (entire) {
             return material;
         } else {
@@ -90,7 +88,7 @@ struct Block<0> : public BlockBase {
             BlockMaterialType material_value = material.load();
             hash.update(material_value);
         } else {
-            for (unsigned i = 0; i < MATERIAL_COUNT; ++i) {
+            for (BlockIndexType i = 0; i < MATERIAL_COUNT; ++i) {
                 hash.update(materials[i].load());
             }
         }
@@ -103,8 +101,8 @@ struct Block : public BlockBase
 {
     typedef std::shared_ptr<Block<Level>> Ptr;
     typedef std::weak_ptr<Block<Level>> WeakPtr;
-    constexpr static GlobalCoordinateType CHILDREN_COUNT = NESTED_BLOCKS * NESTED_BLOCKS * NESTED_BLOCKS;
-    constexpr static GlobalCoordinateType SIZE = NESTED_BLOCKS * Block<Level - 1>::SIZE;
+    constexpr static BlockIndexType CHILDREN_COUNT = NESTED_BLOCKS * NESTED_BLOCKS * NESTED_BLOCKS;
+    constexpr static BlockIndexType SIZE = NESTED_BLOCKS * Block<Level - 1>::SIZE;
 
     SpinLocked<typename Block<Level-1>::Ptr> children[CHILDREN_COUNT] = { nullptr };
 
@@ -113,13 +111,13 @@ struct Block : public BlockBase
 
     Block(const Block<Level>& other) : BlockBase(other) {
         if (!entire) {
-            for (std::int32_t i = 0; i < Block<Level>::CHILDREN_COUNT; ++i) {
+            for (BlockIndexType i = 0; i < Block<Level>::CHILDREN_COUNT; ++i) {
                 children[i].write(other.children[i].read());
             }
         }
     }
 
-    BlockMaterialType getMaterial(GlobalCoordinateType x, GlobalCoordinateType y, GlobalCoordinateType z) const {
+    BlockMaterialType getMaterial(BlockIndexType x, BlockIndexType y, BlockIndexType z) const {
         if (entire) {
             return material;
         }
@@ -142,7 +140,7 @@ struct Block : public BlockBase
             BlockMaterialType material_value = material.load();
             hash.update(material_value);
         } else {
-            for (unsigned i = 0; i < CHILDREN_COUNT; ++i) {
+            for (BlockIndexType i = 0; i < CHILDREN_COUNT; ++i) {
                 hash.update(children[i].read().get());
             }
         }
@@ -180,7 +178,7 @@ void executeForAllLevels() {
     ExecutorForAllLevels<Operator, TOP_LEVEL>::execute();
 }
 
-inline BlockIndexType globalCoordinateToTopLevelBlockIndex(GlobalCoordinateType value, GlobalCoordinateType& local) {
+inline BlockIndexType globalCoordinateToTopLevelBlockIndex(BlockIndexType value, BlockIndexType& local) {
     BlockIndexType result;
     if (value < 0) {
         result = value / TopLevelBlock::SIZE - 1;

@@ -44,10 +44,10 @@ static std::unique_ptr<boost::asio::deadline_timer>& getDeadlineTimer() {
     return timer;
 }
 
-template <GlobalCoordinateType Size>
-void addSimpleCube(BgfxVertex* vbo, unsigned& vbo_index, GlobalCoordinateType base_x, GlobalCoordinateType base_y, GlobalCoordinateType base_z) {
-    constexpr static GlobalCoordinateType SIZE = Size;
-    constexpr static GlobalCoordinateType coords[8][3] = {
+template <BlockIndexType Size>
+void addSimpleCube(BgfxVertex* vbo, unsigned& vbo_index, BlockIndexType base_x, BlockIndexType base_y, BlockIndexType base_z) {
+    constexpr static BlockIndexType SIZE = Size;
+    constexpr static BlockIndexType coords[8][3] = {
         { 0, 0, 0 },
         { 1, 0, 0 },
         { 1, 1, 0 },

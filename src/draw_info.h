@@ -9,8 +9,6 @@
 #include "bgfx_api.h"
 #include "game_logic.h"
 
-typedef std::uint8_t BlockMaterialType;
-
 constexpr unsigned MATERIAL_MAX = std::numeric_limits<BlockMaterialType>::max() + 1;
 
 struct DrawRefInfo {
@@ -27,7 +25,7 @@ struct DrawInfo {
 };
 
 struct DrawInstanceInfo {
-    GlobalCoordinateType x, y, z;
+    BlockIndexType x, y, z;
 };
 
 struct MaterialDrawInfo {

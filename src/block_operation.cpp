@@ -96,30 +96,28 @@ struct BlockOperationProcessor;
 
 template <>
 struct BlockOperationProcessor<0> {
-    template <class Operation>
     static Block<0>::Ptr process(
         const Block<0>::Ptr& block,
-        bool use_level, std::uint8_t level,
-        BlockIndexType x, BlockIndexType y, BlockIndexType z,
-        Operation&& operation) {
+        const BlockOperation& operation) {
         Block<0>::Ptr copy_block = nullptr;
-        if (use_level && level == 0) {
+        if (operation.use_level && operation.level == 0) {
             copy_block = std::make_shared<Block<0>>();
             copy_block->entire = true;
-            operation(copy_block->material);
+            copy_block->material = operation.material;
         } else {
             copy_block = std::make_shared<Block<0>>(*block);
             if (copy_block->entire) {
                 copy_block->entire = false;
                 BlockMaterialType overall_material = copy_block->material.load();
-                for (std::int32_t i = 0; i < Block<0>::MATERIAL_COUNT; ++i) {
+                for (BlockIndexType i = 0; i < Block<0>::MATERIAL_COUNT; ++i) {
                     copy_block->materials[i] = overall_material;
                 }
             }
-            operation(copy_block->materials[z * NESTED_BLOCKS * NESTED_BLOCKS + y * NESTED_BLOCKS + x]);
+            auto block_index = operation.z * NESTED_BLOCKS * NESTED_BLOCKS + operation.y * NESTED_BLOCKS + operation.x;
+            copy_block->materials[block_index] = operation.material;
             bool all_the_same = true;
             BlockMaterialType first_material = copy_block->materials[0];
-            for (std::int32_t i = 1; i < Block<0>::MATERIAL_COUNT; ++i) {
+            for (BlockIndexType i = 1; i < Block<0>::MATERIAL_COUNT; ++i) {
                 if (copy_block->materials[i] != first_material) {
                     all_the_same = false;
                     break;
@@ -130,122 +128,100 @@ struct BlockOperationProcessor<0> {
                 copy_block->material = first_material;
             }
         }
-        auto result_block = getCached<0>(copy_block);
-        return result_block;
+        return getCached<0>(copy_block);
     }
 };
 
 template <std::uint8_t Level>
 struct BlockOperationProcessor {
-    template <class Operation>
     static typename Block<Level>::Ptr process(
         const typename Block<Level>::Ptr& block,
-        bool use_level, std::uint8_t level,
-        BlockIndexType x, BlockIndexType y, BlockIndexType z,
-        Operation&& operation) {
+        const BlockOperation& operation) {
         Block<Level>::Ptr copy_block = nullptr;
-        if (use_level && level == Level) {
+        if (operation.use_level && operation.level == Level) {
             copy_block = std::make_shared<Block<Level>>();
             copy_block->entire = true;
-            operation(copy_block->material);
+            copy_block->material = operation.material;
         } else {
             copy_block = std::make_shared<Block<Level>>(*block);
             if (copy_block->entire) {
                 copy_block->entire = false;
                 auto sub_level_block = std::make_shared<Block<Level - 1>>(copy_block->material);
                 auto cached_sub_level_block = getCached<Level - 1>(sub_level_block);
-                for (std::int32_t i = 0; i < Block<Level>::CHILDREN_COUNT; ++i) {
+                for (BlockIndexType i = 0; i < Block<Level>::CHILDREN_COUNT; ++i) {
                     copy_block->children[i].write(cached_sub_level_block);
                 }
             }
-            GlobalCoordinateType sub_block_x = x / Block<Level - 1>::SIZE;
-            GlobalCoordinateType sub_block_y = y / Block<Level - 1>::SIZE;
-            GlobalCoordinateType sub_block_z = z / Block<Level - 1>::SIZE;
-            GlobalCoordinateType sub_block_local_x = x % Block<Level - 1>::SIZE;
-            GlobalCoordinateType sub_block_local_y = y % Block<Level - 1>::SIZE;
-            GlobalCoordinateType sub_block_local_z = z % Block<Level - 1>::SIZE;
-            std::int32_t child_index = sub_block_z * NESTED_BLOCKS * NESTED_BLOCKS + sub_block_y * NESTED_BLOCKS + sub_block_x;
-            auto existing_child = copy_block->children[child_index].read();
-            copy_block->children[child_index].write(BlockOperationProcessor<Level - 1>::process(existing_child, use_level, level, sub_block_local_x, sub_block_local_y, sub_block_local_z, operation));
+            BlockOperation sub_operation;
+            sub_operation.use_level = operation.use_level;
+            sub_operation.level = operation.level;
+            sub_operation.material = operation.material;
+            sub_operation.x = operation.x % Block<Level - 1>::SIZE;
+            sub_operation.y = operation.y % Block<Level - 1>::SIZE;
+            sub_operation.z = operation.z % Block<Level - 1>::SIZE;
+            BlockIndexType sub_block_x = operation.x / Block<Level - 1>::SIZE;
+            BlockIndexType sub_block_y = operation.y / Block<Level - 1>::SIZE;
+            BlockIndexType sub_block_z = operation.z / Block<Level - 1>::SIZE;
+            auto child_index = sub_block_z * NESTED_BLOCKS * NESTED_BLOCKS + sub_block_y * NESTED_BLOCKS + sub_block_x;
+            auto child = copy_block->children[child_index].read();
+            copy_block->children[child_index].write(BlockOperationProcessor<Level - 1>::process(child, sub_operation));
             bool all_sub_blocks_same = true;
             auto first_sub_block = copy_block->children[0].read();
-            for (std::int32_t i = 1; i < Block<Level>::CHILDREN_COUNT; ++i) {
-                if (copy_block->children[i].read().get() != first_sub_block.get()) {
-                    all_sub_blocks_same = false;
-                    break;
+            if (first_sub_block->entire) {
+                for (BlockIndexType i = 1; i < Block<Level>::CHILDREN_COUNT; ++i) {
+                    if (copy_block->children[i].read().get() != first_sub_block.get()) {
+                        all_sub_blocks_same = false;
+                        break;
+                    }
                 }
-            }
-            if (all_sub_blocks_same && first_sub_block->entire) {
-                copy_block->entire = true;
-                copy_block->material = first_sub_block->material.load();
-                for (std::int32_t i = 0; i < Block<Level>::CHILDREN_COUNT; ++i) {
-                    copy_block->children[i].write(nullptr);
+                if (all_sub_blocks_same) {
+                    copy_block->entire = true;
+                    copy_block->material = first_sub_block->material.load();
+                    for (BlockIndexType i = 0; i < Block<Level>::CHILDREN_COUNT; ++i) {
+                        copy_block->children[i].write(nullptr);
+                    }
                 }
             }
         }
-        auto result_block = getCached<Level>(copy_block);
-        return result_block;
+        return getCached<Level>(copy_block);
     }
 };
 
-static inline void putBlock(
-    const WorldColumn::Ptr& column, BlockIndexType block_z_index,
-    bool use_level, std::uint8_t level,
-    BlockIndexType x, BlockIndexType y, BlockIndexType z,
-    BlockMaterialType new_material) {
-    auto top_block = column->getBlock(block_z_index);
-    BlockMaterialType existing_material = top_block->getMaterial(x, y, z);
-    if (existing_material == 0) {
-        auto result_top_block = BlockOperationProcessor<TOP_LEVEL>::process(top_block, use_level, level, x, y, z, [new_material](std::atomic<BlockMaterialType>& material) {
-            material = new_material;
-        });
-        column->setBlock(block_z_index, result_top_block);
-    }
-}
-
-static inline void removeBlock(
-    const WorldColumn::Ptr& column, BlockIndexType block_z_index,
-    bool use_level, std::uint8_t level,
-    BlockIndexType x, BlockIndexType y, BlockIndexType z) {
-    auto top_block = column->getBlock(block_z_index);
-    BlockMaterialType existing_material = top_block->getMaterial(x, y, z);
-    if (existing_material != 0) {
-        auto result_top_block = BlockOperationProcessor<TOP_LEVEL>::process(top_block, use_level, level, x, y, z, [](std::atomic<BlockMaterialType>& material) {
-            material = 0;
-        });
-        column->setBlock(block_z_index, result_top_block);
-    }
-}
-
-static inline void processBlockOperation(const BlockOperation& block_operation) {
-    if (block_operation.finish_flag) {
+static inline void processBlockOperation(const BlockOperation& operation) {
+    if (operation.finish) {
         // Ignore this block operation request.
         return;
     }
 
-    BlockIndexType local_x;
-    BlockIndexType local_y;
-    BlockIndexType local_z;
-    BlockIndexType block_x_index = globalCoordinateToTopLevelBlockIndex(block_operation.x, local_x);
-    BlockIndexType block_y_index = globalCoordinateToTopLevelBlockIndex(block_operation.y, local_y);
-    BlockIndexType block_z_index = globalCoordinateToTopLevelBlockIndex(block_operation.z, local_z);
-    BlockMaterialType existing_material = 0;
+    BlockOperation sub_operation;
+    sub_operation.use_level = operation.use_level;
+    sub_operation.level = operation.level;
+    sub_operation.material = operation.material;
+    BlockIndexType block_x_index = globalCoordinateToTopLevelBlockIndex(operation.x, sub_operation.x);
+    BlockIndexType block_y_index = globalCoordinateToTopLevelBlockIndex(operation.y, sub_operation.y);
+    BlockIndexType block_z_index = globalCoordinateToTopLevelBlockIndex(operation.z, sub_operation.z);
+
     auto line = g_world->getLineByAbsoluteIndex(block_x_index);
     if (line) {
         auto column = line->getColumnByAbsoluteIndex(block_y_index);
         if (column) {
-            if (block_operation.put_block) {
-                putBlock(column, block_z_index, block_operation.use_level, block_operation.level, local_x, local_y, local_z, block_operation.material);
-            } else {
-                removeBlock(column, block_z_index, block_operation.use_level, block_operation.level, local_x, local_y, local_z);
+            auto top_block = column->getBlock(block_z_index);
+            BlockMaterialType existing_material = top_block->getMaterial(sub_operation.x, sub_operation.y, sub_operation.z);
+            if (existing_material == operation.material) {
+                // Do nothing.
+                return;
             }
+            if ((existing_material != 0) && (operation.material != 0)) {
+                // Do nothing
+                return;
+            }
+            auto result_top_block = BlockOperationProcessor<TOP_LEVEL>::process(top_block, sub_operation);
+            column->setBlock(block_z_index, result_top_block);
         }
     }
 }
 
 static void blockOperationThread() {
-    initializeCacheCleaningIterators();
-
     SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN);
 
     while (g_is_running) {
@@ -253,9 +229,9 @@ static void blockOperationThread() {
         g_block_operation_queue.waitForNewRequests(block_operation);
         do {
             processBlockOperation(block_operation);
-            initializeCacheCleaningIterators();
         } while (g_block_operation_queue.pop(block_operation) && g_is_running);
 
+        initializeCacheCleaningIterators();
         for (BlockIndexType i = 0; i < WORLD_BLOCK_SIZE_X && g_is_running; ++i) {
             cleanUpCaches();
         }
@@ -270,7 +246,7 @@ void startBlockOperationThread() {
 
 void finishBlockOperationThread() {
     BlockOperation wakeup_and_finish_operation;
-    wakeup_and_finish_operation.finish_flag = true;
+    wakeup_and_finish_operation.finish = true;
     postBlockOperation(wakeup_and_finish_operation);
     g_block_operation_thread->join();
     g_block_operation_thread.reset();

@@ -205,7 +205,7 @@ template <std::uint8_t Level>
 void collectInstances(
     BlockInstanceRenderInfo<Level>& info,
     const typename Block<Level>::Ptr& block,
-    GlobalCoordinateType base_x, GlobalCoordinateType base_y, GlobalCoordinateType base_z) {
+    BlockIndexType base_x, BlockIndexType base_y, BlockIndexType base_z) {
     if (!block) {
         return;
     }
@@ -222,10 +222,10 @@ void collectInstances(
         block->draw_instance_info.push_back({ base_x, base_y, base_z });
     } else {
         if constexpr (Level > 0) {
-            constexpr GlobalCoordinateType SUB_BLOCK_SIZE = Block<Level - 1>::SIZE;
-            for (std::int32_t z = 0; z < NESTED_BLOCKS; ++z) {
-                for (std::int32_t y = 0; y < NESTED_BLOCKS; ++y) {
-                    for (std::int32_t x = 0; x < NESTED_BLOCKS; ++x) {
+            constexpr BlockIndexType SUB_BLOCK_SIZE = Block<Level - 1>::SIZE;
+            for (BlockIndexType z = 0; z < NESTED_BLOCKS; ++z) {
+                for (BlockIndexType y = 0; y < NESTED_BLOCKS; ++y) {
+                    for (BlockIndexType x = 0; x < NESTED_BLOCKS; ++x) {
                         Block<Level - 1>::Ptr child = block->children[z * NESTED_BLOCKS * NESTED_BLOCKS + y * NESTED_BLOCKS + x].read();
                         collectInstances<Level - 1>(info, child, base_x + x * SUB_BLOCK_SIZE, base_y + y * SUB_BLOCK_SIZE, base_z + z * SUB_BLOCK_SIZE);
                     }
@@ -289,9 +289,9 @@ void Renderer::render(int window_width, int window_height) {
     const bool instancing_supported = 0 != (BGFX_CAPS_INSTANCING & caps->supported);
     if (instancing_supported) {
         TopLevelBlockInstanceRenderInfo info;
-        GlobalCoordinateType local_x;
-        GlobalCoordinateType local_y;
-        GlobalCoordinateType local_z;
+        BlockIndexType local_x;
+        BlockIndexType local_y;
+        BlockIndexType local_z;
         const BlockIndexType block_x_index = globalCoordinateToTopLevelBlockIndex(player_coordinates.x, local_x);
         const BlockIndexType block_y_index = globalCoordinateToTopLevelBlockIndex(player_coordinates.y, local_y);
         const BlockIndexType block_z_index = globalCoordinateToTopLevelBlockIndex(TopLevelBlock::SIZE, local_z);
@@ -300,12 +300,12 @@ void Renderer::render(int window_width, int window_height) {
         BlockIndexType finish_block_x_index = block_x_index + VIEW_DISTANCE;
         BlockIndexType finish_block_y_index = block_y_index + VIEW_DISTANCE;
 
-        constexpr GlobalCoordinateType NORTH_EAST = 45;
-        constexpr GlobalCoordinateType SOUTH_EAST = 135;
-        constexpr GlobalCoordinateType SOUTH_WEST = 225;
-        constexpr GlobalCoordinateType NORTH_WEST = 315;
+        constexpr BlockIndexType NORTH_EAST = 45;
+        constexpr BlockIndexType SOUTH_EAST = 135;
+        constexpr BlockIndexType SOUTH_WEST = 225;
+        constexpr BlockIndexType NORTH_WEST = 315;
 
-        // By default draw all blocks which are nearer than VIEW_DISTANCE distance
+        // By default draw all blocks which are nearer than VIEW_DISTANCE distance.
         // & - means the player position
         //
         // +------+------+
@@ -318,7 +318,7 @@ void Renderer::render(int window_width, int window_height) {
 
         if (player_coordinates.direction > NORTH_EAST && player_coordinates.direction <= SOUTH_EAST) {
             //start_block_x_index = block_x_index;
-            // If player looks to the East then draw only half of the all blocks
+            // If player looks to the East then draw only half of the all blocks.
             // * - means the drawn block
             // +------********
             // |      ********
@@ -329,7 +329,7 @@ void Renderer::render(int window_width, int window_height) {
             // +------********
         } else if (player_coordinates.direction > SOUTH_EAST && player_coordinates.direction <= SOUTH_WEST) {
             //finish_block_y_index = block_y_index;
-            // If player looks to the South then draw only half of the all blocks
+            // If player looks to the South then draw only half of the all blocks.
             // * - means the drawn block
             // +------+------+
             // |      |      |
@@ -340,7 +340,7 @@ void Renderer::render(int window_width, int window_height) {
             // ***************
         } else if (player_coordinates.direction > SOUTH_WEST && player_coordinates.direction <= NORTH_WEST) {
             //finish_block_x_index = block_x_index;
-            // If player looks to the West then draw only half of the all blocks
+            // If player looks to the West then draw only half of the all blocks.
             // * - means the drawn block
             // ********------+
             // ********      |
@@ -351,7 +351,7 @@ void Renderer::render(int window_width, int window_height) {
             // ********------+
         } else {
             //start_block_y_index = block_y_index;
-            // If player looks to the North then draw only half of the all blocks
+            // If player looks to the North then draw only half of the all blocks.
             // * - means the drawn block
             // ***************
             // ***************
