@@ -281,7 +281,7 @@ void Renderer::render(int window_width, int window_height) {
         bx::Vec3(static_cast<float>(player_coordinates.x), static_cast<float>(player_coordinates.y), TopLevelBlock::SIZE + 160.0f),
         bx::Vec3(at_x_pos, at_y_pos, at_z_pos + TopLevelBlock::SIZE + 160.0f), // Player's eyes height is 160 centimeters
         bx::Vec3(0.0f, 0.0f, 1.0f),
-        bx::Handedness::Right
+        bx::Handness::Right
     );
 
     float projection_matrix[16];
@@ -291,7 +291,7 @@ void Renderer::render(int window_width, int window_height) {
         1.0f,
         VIEW_DISTANCE * TopLevelBlock::SIZE,
         bgfx::getCaps()->homogeneousDepth,
-        bx::Handedness::Right
+        bx::Handness::Right
     );
     bgfx::setViewTransform(0, view_matrix, projection_matrix);
     bgfx::setViewRect(0, 0, 0, window_width, window_height);

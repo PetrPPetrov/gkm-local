@@ -69,7 +69,7 @@ ${VCPKG_ROOT}/installed/x64-windows-static/include
 ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-link_directories(${BGFX_ROOT}/.build/win64_vs2022/bin)
+link_directories(${BGFX_ROOT}/.build/win64_vs2019/bin)
 link_directories(${VCPKG_ROOT}/installed/x64-windows-static)
 
 set(SHADER_H_FILES)
@@ -85,7 +85,7 @@ macro(compile_shader_for_single_platform shader_file_name)
   add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${shader_file_name}.h
   COMMAND
-    ${BGFX_ROOT}/.build/win64_vs2022/bin/shadercRelease
+    ${BGFX_ROOT}/.build/win64_vs2019/bin/shadercRelease
     -f ${PROJECT_SOURCE_DIR}/shaders/${shader_file_name}.sc
     -o ${CMAKE_CURRENT_BINARY_DIR}/${shader_file_name}.h
     --bin2c
@@ -104,11 +104,11 @@ macro(compile_shader_for_single_platform shader_file_name)
 endmacro()
 
 macro(compile_vs_shader shader_file_name)
-  compile_shader_for_single_platform(${shader_file_name} --type vertex --platform windows -p s_5_0 -O 3)
+  compile_shader_for_single_platform(${shader_file_name} --type vertex --platform windows -p vs_5_0 -O 3)
 endmacro()
 
 macro(compile_fs_shader shader_file_name)
-  compile_shader_for_single_platform(${shader_file_name} --type fragment --platform windows -p s_5_0 -O 3)
+  compile_shader_for_single_platform(${shader_file_name} --type fragment --platform windows -p ps_5_0 -O 3)
 endmacro()
 
 compile_vs_shader(vs_pos_tex)
