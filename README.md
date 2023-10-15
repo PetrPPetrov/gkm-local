@@ -29,7 +29,6 @@ git clone https://github.com/Microsoft/vcpkg
 cd vcpkg
 .\bootstrap-vcpkg.bat
 vcpkg install libjpeg-turbo --triplet x64-windows-static
-vcpkg install boost --triplet x64-windows-static
 ```
 
 3. During CMake configure step specify variables BGFX_ROOT and VCPKG_ROOT
