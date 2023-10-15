@@ -1,7 +1,10 @@
 // Copyright 2023 Petr Petrov. All rights reserved.
 // License: https://github.com/PetrPPetrov/gkm-local/blob/main/LICENSE
 
-#include <boost/asio.hpp>
+#include <cstdint>
+#include <thread>
+#include <atomic>
+#include <chrono>
 #include "main.h"
 #include "user_interface.h"
 #include "game_logic.h"
@@ -35,49 +38,59 @@ private:
     FlatTerrain::Ptr terrain;
 };
 
+constexpr static std::uint32_t TARGET_FPS = 60;
+static_assert(TARGET_FPS > 1);
+
+constexpr static std::chrono::seconds ONE_SECOND(1);
+constexpr static std::uint32_t ONE_SEC_MC = static_cast<std::uint32_t>(std::chrono::microseconds(ONE_SECOND).count());
+
+constexpr static std::chrono::milliseconds SLEEP_FOR_FPS(50);
+constexpr static std::uint32_t SLEEP_COUNT = static_cast<std::uint32_t>(std::chrono::milliseconds(ONE_SECOND).count() / SLEEP_FOR_FPS.count());
+
 static Renderer::Ptr g_renderer = nullptr;
 static std::unique_ptr<std::thread> g_render_thread = nullptr;
-static std::unique_ptr<boost::asio::io_service> g_io_service;
-static std::unique_ptr<boost::asio::deadline_timer> g_timer;
-static boost::posix_time::microseconds g_render_interval(12000);
+static std::unique_ptr<std::thread> g_fps_count_thread = nullptr;
 
-static std::unique_ptr<boost::asio::deadline_timer> g_fps_timer;
-const static boost::posix_time::microseconds FPS_COUNTING_INTERVAL(500000);
-constexpr static float ONE_SECOND_IN_MC = 1000000.0f;
-const static float FPS_MULTIPLIER = ONE_SECOND_IN_MC / FPS_COUNTING_INTERVAL.total_microseconds();
-static unsigned g_fps = 0;
-constexpr static float TARGET_FPS = 60.0f;
-static_assert(TARGET_FPS > 1.0f);
+static_assert(std::atomic<std::uint32_t>::is_always_lock_free);
+static std::atomic<std::uint32_t> g_fps = 0;
+static std::atomic<std::uint32_t> g_wait_time = 10000;
 
 static HWND g_hwnd = 0;
 
-static void render(const boost::system::error_code& error) {
-    if (g_is_running) {
-        g_timer->expires_at(g_timer->expires_at() + g_render_interval);
-        g_timer->async_wait(&render);
-
-        bgfx::reset(g_window_width, g_window_height, BGFX_RESET_MSAA_X4);
-        drawUserInterface(g_window_width, g_window_height, g_main_menu_open);
-        g_renderer->render(g_window_width, g_window_height);
-        ++g_fps;
-    }
-}
-
-static void fpsCount(const boost::system::error_code& error) {
-    if (g_is_running) {
-        g_fps_timer->expires_at(g_fps_timer->expires_at() + FPS_COUNTING_INTERVAL);
-        g_fps_timer->async_wait(&fpsCount);
-
-        float fps = FPS_MULTIPLIER * g_fps;
-        float wait_time = static_cast<float>(g_render_interval.total_microseconds()) * fps;
-        float render_time = std::max<float>(ONE_SECOND_IN_MC - wait_time, 0.0f);
-        fps = std::max<float>(fps, 0.1f);
-        float increase_rate = TARGET_FPS / fps;
-        float new_render_time = increase_rate * render_time;
-        float new_wait_time = std::max<float>(ONE_SECOND_IN_MC - new_render_time, 0.0f);
-        float frame_wait_time = std::max<float>(new_wait_time / TARGET_FPS, 0.0f);
-        g_render_interval = boost::posix_time::microseconds(static_cast<unsigned>(frame_wait_time));
+static void fpsCount() {
+    while (g_is_running) {
         g_fps = 0;
+
+        for (std::uint32_t i = 0; i < SLEEP_COUNT; ++i) {
+            if (!g_is_running) {
+                return;
+            }
+
+            std::this_thread::sleep_for(SLEEP_FOR_FPS);
+        }
+
+        std::uint32_t fps = g_fps.load();
+        if (fps == 0) {
+            fps = 1;
+        }
+
+        const std::uint32_t wait_time = g_wait_time.load();
+        const std::uint32_t wait_time_in_1_sec = wait_time * fps;
+
+        // Wait time can not be greater than 1 second (in microsecond).
+        assert(wait_time_in_1_sec < ONE_SEC_MC);
+        std::uint32_t render_time_in_1_sec = 0;
+        if (wait_time_in_1_sec < ONE_SEC_MC) {
+            render_time_in_1_sec = ONE_SEC_MC - wait_time_in_1_sec;
+        }
+
+        const std::uint32_t render_time_one_frame = render_time_in_1_sec / fps;
+        const std::uint32_t predicted_render_time_in_1_sec = TARGET_FPS * render_time_one_frame;
+        std::uint32_t desired_wait_time = 0;
+        if (predicted_render_time_in_1_sec < ONE_SEC_MC) {
+            desired_wait_time = (ONE_SEC_MC - predicted_render_time_in_1_sec) / TARGET_FPS;
+        }
+        g_wait_time.store(desired_wait_time);
     }
 }
 
@@ -86,15 +99,15 @@ static void renderThread() {
     g_renderer->init();
     imguiCreate();
 
-    g_io_service = std::make_unique<boost::asio::io_service>();
+    while (g_is_running) {
+        std::chrono::microseconds wait_time(g_wait_time.load());
+        std::this_thread::sleep_for(wait_time);
 
-    g_timer = std::make_unique<boost::asio::deadline_timer>(*g_io_service, g_render_interval);
-    g_timer->async_wait(&render);
-
-    g_fps_timer = std::make_unique<boost::asio::deadline_timer>(*g_io_service, FPS_COUNTING_INTERVAL);
-    g_fps_timer->async_wait(&fpsCount);
-
-    g_io_service->run();
+        bgfx::reset(g_window_width, g_window_height, BGFX_RESET_MSAA_X4);
+        drawUserInterface(g_window_width, g_window_height, g_main_menu_open);
+        g_renderer->render(g_window_width, g_window_height);
+        g_fps.store(g_fps.load() + 1);
+    }
 
     finishTessellationThreads();
     finishBlockOperationThread();
@@ -108,10 +121,14 @@ static void renderThread() {
 void initializeRenderer(HWND hwnd) {
     g_hwnd = hwnd;
     g_render_thread = std::make_unique<std::thread>(&renderThread);
+    g_fps_count_thread = std::make_unique<std::thread>(&fpsCount);
 }
 
 void shutdownRenderer() {
     g_render_thread->join();
+    g_fps_count_thread->join();
+    g_render_thread.reset();
+    g_fps_count_thread.reset();
 }
 
 Renderer::Renderer(std::uint32_t width_, std::uint32_t height_, void* native_windows_handle, bgfx::RendererType::Enum render_type) {

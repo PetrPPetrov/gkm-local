@@ -188,11 +188,6 @@ struct BlockOperationProcessor {
 };
 
 static inline void processBlockOperation(const BlockOperation& operation) {
-    if (operation.finish) {
-        // Ignore this block operation request.
-        return;
-    }
-
     BlockOperation sub_operation;
     sub_operation.use_level = operation.use_level;
     sub_operation.level = operation.level;
@@ -228,11 +223,17 @@ static void blockOperationThread() {
         BlockOperation block_operation;
         g_block_operation_queue.waitForNewRequests(block_operation);
         do {
+            if (!g_is_running || block_operation.finish) {
+                return;
+            }
             processBlockOperation(block_operation);
-        } while (g_block_operation_queue.pop(block_operation) && g_is_running);
+        } while (g_block_operation_queue.pop(block_operation));
 
         initializeCacheCleaningIterators();
-        for (BlockIndexType i = 0; i < WORLD_BLOCK_SIZE_X && g_is_running; ++i) {
+        for (BlockIndexType i = 0; i < WORLD_BLOCK_SIZE_X; ++i) {
+            if (!g_is_running) {
+                return;
+            }
             cleanUpCaches();
         }
     }

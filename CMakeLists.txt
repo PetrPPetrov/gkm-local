@@ -51,7 +51,6 @@ endif()
 
 add_definitions(-D__STDC_LIMIT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_CONSTANT_MACROS)
 add_definitions(-D_SCL_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE)
-add_definitions(-DBOOST_ASIO_SEPARATE_COMPILATION)
 
 if (MSVC)
   add_compile_options(/Zc:__cplusplus)

@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "game_logic.h"
 #include "block.h"
 
 template <std::uint8_t Level>
 struct TessellationRequest {
+    bool finish = false;
     typename Block<Level>::Ptr block;
 };
 

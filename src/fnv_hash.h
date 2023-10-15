@@ -6,15 +6,15 @@
 #include <cstddef>
 #include <cstdint>
 
-// Fowler / Noll / Vo (FNV) Hash
+// Fowler / Noll / Vo (FNV) Hash.
 class FnvHash {
 public:
     typedef std::uint64_t Hash;
 
     void update(const std::uint8_t* data, std::size_t size) {
         for (std::size_t i = 0; i < size; ++i) {
-            hash = hash ^ (data[i]); // Xor the low 8 bits
-            hash = hash * g_fnv_multiple; // Multiply by the magic number
+            hash = hash ^ (data[i]); // Xor the low 8 bits.
+            hash = hash * g_fnv_multiple; // Multiply by the magic number.
         }
     }
     template <class T>

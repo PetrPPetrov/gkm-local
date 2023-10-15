@@ -2,24 +2,17 @@
 // License: https://github.com/PetrPPetrov/gkm-local/blob/main/LICENSE
 
 #include <cstdint>
-#include <limits>
-#include <unordered_map>
 #include <thread>
-#include <iterator>
-#include <boost/asio.hpp>
-#include <boost/date_time/posix_time/posix_time_types.hpp>
-#include "fnv_hash.h"
 #include "main.h"
 #include "world.h"
 #include "request_queue.h"
 #include "tessellation.h"
 
-const static boost::posix_time::milliseconds TESSELLATION_WAKE_UP_TIME_INTERVAL(250);
 constexpr std::uint32_t TESSELLATION_REQUEST_BUFFER_SIZE = WORLD_BLOCK_SIZE_X * WORLD_BLOCK_HEIGHT * WORLD_BLOCK_HEIGHT;
 
 template <std::uint8_t Level>
 static std::unique_ptr<std::thread>& getTessellationThread() {
-    static std::unique_ptr<std::thread> tessellation_thread;
+    static std::unique_ptr<std::thread> tessellation_thread = nullptr;
     return tessellation_thread;
 }
 
@@ -32,16 +25,12 @@ static TessellationRequestsQueue<Level>& getTessellationRequestQueue() {
     return tessellation_request_queue;
 }
 
-template <std::uint8_t Level>
-static std::unique_ptr<boost::asio::io_service>& getIOService() {
-    static std::unique_ptr<boost::asio::io_service> io_service;
-    return io_service;
-}
-
-template <std::uint8_t Level>
-static std::unique_ptr<boost::asio::deadline_timer>& getDeadlineTimer() {
-    static std::unique_ptr<boost::asio::deadline_timer> timer;
-    return timer;
+static inline BlockDrawInfo::Ptr getEmptyTessellation() {
+    static BlockDrawInfo::Ptr empty_tessellation = nullptr;
+    if (!empty_tessellation) {
+        empty_tessellation = std::make_shared<BlockDrawInfo>();
+    }
+    return empty_tessellation;
 }
 
 template <BlockIndexType Size>
@@ -181,8 +170,10 @@ void processTessellationRequest(const TessellationRequest<Level>& request) {
     if (!block->draw_info.read()) {
         if (block->entire) {
             if (block->material == 0) {
-                // Do nothing, special case when the current block is empty
+                // Add empty tessellation.
+                block->draw_info.write(getEmptyTessellation());
             } else {
+                // Simple tessellation by cube.
                 tessellateBySimpleCube<Level>(block);
             }
         } else {
@@ -201,32 +192,21 @@ void processTessellationRequest(const TessellationRequest<Level>& request) {
 }
 
 template <std::uint8_t Level>
-static void processTessellationRequests(const boost::system::error_code& error) {
+static void tessellationThread() {
     SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN);
 
-    TessellationRequest<Level> request;
-    while (getTessellationRequestQueue<Level>().pop(request) && g_is_running) {
-        processTessellationRequest<Level>(request);
-    }
-    if (g_is_running) {
-        getDeadlineTimer<Level>()->expires_at(getDeadlineTimer<Level>()->expires_at() + TESSELLATION_WAKE_UP_TIME_INTERVAL);
-        getDeadlineTimer<Level>()->async_wait(&processTessellationRequests<Level>);
-    } else {
-        // Clean up tessellation request queue
+    while (g_is_running) {
         TessellationRequest<Level> request;
-        while (getTessellationRequestQueue<Level>().pop(request)) {
-        }
+        getTessellationRequestQueue<Level>().waitForNewRequests(request);
+        do {
+            if (!g_is_running || request.finish) {
+                return;
+            }
+            processTessellationRequest<Level>(request);
+        } while (getTessellationRequestQueue<Level>().pop(request));
     }
 
     SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_END);
-}
-
-template <std::uint8_t Level>
-static void tessellationThread() {
-    getIOService<Level>() = std::make_unique<boost::asio::io_service>();
-    getDeadlineTimer<Level>() = std::make_unique<boost::asio::deadline_timer>(*getIOService<Level>(), TESSELLATION_WAKE_UP_TIME_INTERVAL);
-    getDeadlineTimer<Level>()->async_wait(&processTessellationRequests<Level>);
-    getIOService<Level>()->run();
 }
 
 template <std::uint8_t Level>
@@ -243,7 +223,11 @@ void startTessellationThreads() {
 template <std::uint8_t Level>
 struct TessellationThreadWaiter {
     static void execute() {
+        TessellationRequest<Level> wakeup_and_finish_request;
+        wakeup_and_finish_request.finish = true;
+        postBlockTessellationRequest<Level>(wakeup_and_finish_request);
         getTessellationThread<Level>()->join();
+        getTessellationThread<Level>().reset();
     }
 };
 
@@ -253,6 +237,10 @@ void finishTessellationThreads() {
 
 template <std::uint8_t Level>
 void postBlockTessellationRequest(const TessellationRequest<Level>& request) {
+    if (request.finish) {
+        getTessellationRequestQueue<Level>().push(request);
+        return;
+    }
     if (!request.block->tessellation_request) {
         request.block->tessellation_request = true;
         getTessellationRequestQueue<Level>().push(request);

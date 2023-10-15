@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include <boost/date_time/posix_time/posix_time_types.hpp>
 #include "gkm_local.h"
 #include "spin_lock.h"
 
@@ -11,8 +10,6 @@ constexpr float GKM_PI = 3.14159265358979323846264338327950288f;
 constexpr float GKM_2PI = 2 * GKM_PI;
 constexpr float GKM_GRAD_TO_RAD = GKM_PI / 180.0f;
 constexpr float GKM_SPEED = 5.0f;
-
-const boost::posix_time::milliseconds GAME_TIME_INTERVAL(25);
 
 struct PlayerCoordinates {
     BlockIndexType x = 0;

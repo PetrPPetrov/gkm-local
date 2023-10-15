@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <memory>
 #include <limits>
+#include <list>
 #include "bgfx_api.h"
 #include "game_logic.h"
 
