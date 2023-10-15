@@ -18,7 +18,7 @@ static std::uint32_t g_tick = 0;
 
 static void gameLogicThread() {
     while (g_is_running) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(15));
+        std::this_thread::sleep_for(std::chrono::milliseconds(25));
         auto player_coordinates = g_player_coordinates.read();
         DirectionPitchDelta delta;
         while (g_direction_pitch_delta_queue.pop(delta)) {
