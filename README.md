@@ -13,7 +13,7 @@ git clone https://github.com/bkaradzic/bgfx
 git clone https://github.com/bkaradzic/bimg
 git clone https://github.com/bkaradzic/bx
 cd bgfx
-..\bx\tools\bin\windows\genie --with-tools --with-examples vs2022
+..\bx\tools\bin\windows\genie --with-tools --with-examples vs2019
 ```
 
 Open the generated bgfx\\.build\projects\bgfx.sln in Visual Studio IDE and switch build type to 'Release', switch architecture to 'x64'.
