@@ -18,23 +18,14 @@ static std::uint32_t g_tick = 0;
 
 static void gameLogicThread() {
     while (g_is_running) {
-        using namespace std::chrono_literals;
-        std::this_thread::sleep_for(25ms);
+        std::this_thread::sleep_for(std::chrono::milliseconds(15));
         auto player_coordinates = g_player_coordinates.read();
         DirectionPitchDelta delta;
         while (g_direction_pitch_delta_queue.pop(delta)) {
             player_coordinates.direction += delta.direction;
-            player_coordinates.direction %= 360;
-            if (player_coordinates.direction < 0) {
-                player_coordinates.direction += 360;
-            }
+            normalizeDirection(player_coordinates.direction);
             player_coordinates.pitch += delta.pitch;
-            if (player_coordinates.pitch < -80) {
-                player_coordinates.pitch = -80;
-            }
-            else if (player_coordinates.pitch > 80) {
-                player_coordinates.pitch = 80;
-            }
+            normalizePitch(player_coordinates.pitch);
         }
         float direction = 0.0f;
         if (g_key_up_pressed && !g_key_down_pressed) {
@@ -43,7 +34,7 @@ static void gameLogicThread() {
         else if (!g_key_up_pressed && g_key_down_pressed) {
             direction = -1.0f;
         }
-        float player_direction = player_coordinates.direction * GKM_GRAD_TO_RAD;
+        const float player_direction = player_coordinates.direction * GKM_GRAD_TO_RAD;
         player_coordinates.x += static_cast<BlockIndexType>(sin(player_direction) * direction * GKM_SPEED);
         player_coordinates.y += static_cast<BlockIndexType>(cos(player_direction) * direction * GKM_SPEED);
         direction = 0.0f;
@@ -54,8 +45,8 @@ static void gameLogicThread() {
             direction = 1.0f;
         }
         auto right_direction = player_coordinates.direction + 90;
-        right_direction %= 360;
-        float right_dir = right_direction * GKM_GRAD_TO_RAD;
+        normalizeDirection(right_direction);
+        const float right_dir = right_direction * GKM_GRAD_TO_RAD;
         player_coordinates.x += static_cast<BlockIndexType>(sin(right_dir) * direction * GKM_SPEED);
         player_coordinates.y += static_cast<BlockIndexType>(cos(right_dir) * direction * GKM_SPEED);
         g_player_coordinates.write(player_coordinates);

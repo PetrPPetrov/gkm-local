@@ -73,8 +73,8 @@ static void onMouseMove(LPARAM l_param) {
         g_first_mouse_move = false;
     } else {
         DirectionPitchDelta delta;
-        delta.direction = (g_current_mouse_x - g_previous_mouse_x) / 2;
-        delta.pitch = -(g_current_mouse_y - g_previous_mouse_y) / 2;
+        delta.direction = static_cast<float>((g_current_mouse_x - g_previous_mouse_x));
+        delta.pitch = static_cast<float>(-(g_current_mouse_y - g_previous_mouse_y));
         if (delta.direction != 0 || delta.pitch != 0) {
             postDirectionPitchDelta(delta);
         }

@@ -14,8 +14,8 @@ constexpr float GKM_SPEED = 5.0f;
 struct PlayerCoordinates {
     BlockIndexType x = 0;
     BlockIndexType y = 0;
-    BlockIndexType direction = 0; // In degrees between 0 and 359
-    BlockIndexType pitch = 0; // In degrees between -90 and 90
+    float direction = 0; // In degrees between 0 and 359
+    float pitch = 0; // In degrees between -90 and 90
 
     typedef SpinLocked<PlayerCoordinates> Atomic;
 };
@@ -23,10 +23,28 @@ struct PlayerCoordinates {
 extern PlayerCoordinates::Atomic g_player_coordinates;
 
 struct DirectionPitchDelta {
-    int direction = 0;
-    int pitch = 0;
+    float direction = 0;
+    float pitch = 0;
 };
 
 void startGameLogicThread();
 void finishGameLogicThread();
 void postDirectionPitchDelta(const DirectionPitchDelta& delta);
+
+inline void normalizeDirection(float& direction) {
+    while (direction >= 360.0f) {
+        direction -= 360.0f;
+    }
+    while (direction < 0.0f) {
+        direction += 360.0f;
+    }
+}
+
+inline void normalizePitch(float& pitch) {
+    if (pitch >= 80.0f) {
+        pitch = 80.0f;
+    }
+    else if (pitch <= -80.0f) {
+        pitch = -80.0f;
+    }
+}
