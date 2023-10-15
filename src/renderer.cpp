@@ -58,20 +58,27 @@ static std::atomic<std::uint32_t> g_wait_time = 10000;
 static HWND g_hwnd = 0;
 
 static void fpsCount() {
+    std::uint32_t frames[SLEEP_COUNT] = { 0 };
+    std::uint32_t step_count = 0;
+
     while (g_is_running) {
         g_fps = 0;
 
-        for (std::uint32_t i = 0; i < SLEEP_COUNT; ++i) {
-            if (!g_is_running) {
-                return;
-            }
+        std::this_thread::sleep_for(SLEEP_FOR_FPS);
 
-            std::this_thread::sleep_for(SLEEP_FOR_FPS);
+        step_count++;
+        for (std::uint32_t i = 0; i < SLEEP_COUNT - 1; ++i) {
+            frames[i] = frames[i + 1];
+        }
+        frames[SLEEP_COUNT - 1] = g_fps.load();
+
+        if (step_count <= SLEEP_COUNT) {
+            return;
         }
 
-        std::uint32_t fps = g_fps.load();
-        if (fps == 0) {
-            fps = 1;
+        std::uint32_t fps = 1;
+        for (std::uint32_t i = 0; i < SLEEP_COUNT; ++i) {
+            fps += frames[i];
         }
 
         const std::uint32_t wait_time = g_wait_time.load();
