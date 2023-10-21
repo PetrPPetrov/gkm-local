@@ -27,28 +27,28 @@ static void gameLogicThread() {
             player_coordinates.pitch += delta.pitch;
             normalizePitch(player_coordinates.pitch);
         }
-        float direction = 0.0f;
+        double direction = 0.0;
         if (g_key_up_pressed && !g_key_down_pressed) {
-            direction = 1.0f;
+            direction = 1.0;
         }
         else if (!g_key_up_pressed && g_key_down_pressed) {
-            direction = -1.0f;
+            direction = -1.0;
         }
-        const float player_direction = player_coordinates.direction * GKM_GRAD_TO_RAD;
-        player_coordinates.x += static_cast<BlockIndexType>(sin(player_direction) * direction * GKM_SPEED);
-        player_coordinates.y += static_cast<BlockIndexType>(cos(player_direction) * direction * GKM_SPEED);
-        direction = 0.0f;
+        const double player_direction = player_coordinates.direction * GKM_GRAD_TO_RAD;
+        player_coordinates.x += sin(player_direction) * direction * GKM_SPEED;
+        player_coordinates.y += cos(player_direction) * direction * GKM_SPEED;
+        direction = 0.0;
         if (g_key_left_pressed && !g_key_right_pressed) {
-            direction = -1.0f;
+            direction = -1.0;
         }
         else if (!g_key_left_pressed && g_key_right_pressed) {
-            direction = 1.0f;
+            direction = 1.0;
         }
         auto right_direction = player_coordinates.direction + 90;
         normalizeDirection(right_direction);
-        const float right_dir = right_direction * GKM_GRAD_TO_RAD;
-        player_coordinates.x += static_cast<BlockIndexType>(sin(right_dir) * direction * GKM_SPEED);
-        player_coordinates.y += static_cast<BlockIndexType>(cos(right_dir) * direction * GKM_SPEED);
+        const double right_dir = right_direction * GKM_GRAD_TO_RAD;
+        player_coordinates.x += sin(right_dir) * direction * GKM_SPEED;
+        player_coordinates.y += cos(right_dir) * direction * GKM_SPEED;
         g_player_coordinates.write(player_coordinates);
 
         //constexpr std::uint32_t BASE_TICK = 3 * 20; // Wait 10 seconds

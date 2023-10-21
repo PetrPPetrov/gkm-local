@@ -275,18 +275,24 @@ typedef BlockInstanceRenderInfo<TOP_LEVEL> TopLevelBlockInstanceRenderInfo;
 
 void Renderer::render(int window_width, int window_height) {
     auto player_coordinates = g_player_coordinates.read();
-    float player_direction = player_coordinates.direction * GKM_GRAD_TO_RAD;
-    float player_pitch = player_coordinates.pitch * GKM_GRAD_TO_RAD;
-    float xy_offset = cos(player_pitch) * 100.0f;
-    float at_x_pos = player_coordinates.x + sin(player_direction) * xy_offset;
-    float at_y_pos = player_coordinates.y + cos(player_direction) * xy_offset;
-    float at_z_pos = sin(player_pitch) * 100.0f;
+    double player_direction = player_coordinates.direction * GKM_GRAD_TO_RAD;
+    double player_pitch = player_coordinates.pitch * GKM_GRAD_TO_RAD;
+    double xy_offset = cos(player_pitch) * 100.0;
+    double at_x_pos = player_coordinates.x + sin(player_direction) * xy_offset;
+    double at_y_pos = player_coordinates.y + cos(player_direction) * xy_offset;
+    double at_z_pos = sin(player_pitch) * 100.0;
 
     float view_matrix[16];
     bx::mtxLookAt(
         view_matrix,
-        bx::Vec3(static_cast<float>(player_coordinates.x), static_cast<float>(player_coordinates.y), TopLevelBlock::SIZE + 160.0f),
-        bx::Vec3(at_x_pos, at_y_pos, at_z_pos + TopLevelBlock::SIZE + 160.0f), // Player's eyes height is 160 centimeters
+        bx::Vec3(
+            static_cast<float>(player_coordinates.x),
+            static_cast<float>(player_coordinates.y),
+            TopLevelBlock::SIZE + 160.0f),
+        bx::Vec3(
+            static_cast<float>(at_x_pos),
+            static_cast<float>(at_y_pos),
+            static_cast<float>(at_z_pos) + TopLevelBlock::SIZE + 160.0f), // Player's eyes height is 160 centimeters
         bx::Vec3(0.0f, 0.0f, 1.0f),
         bx::Handedness::Right
     );
@@ -316,8 +322,10 @@ void Renderer::render(int window_width, int window_height) {
         BlockIndexType local_x;
         BlockIndexType local_y;
         BlockIndexType local_z;
-        const BlockIndexType block_x_index = globalCoordinateToTopLevelBlockIndex(player_coordinates.x, local_x);
-        const BlockIndexType block_y_index = globalCoordinateToTopLevelBlockIndex(player_coordinates.y, local_y);
+        const BlockIndexType player_x = static_cast<BlockIndexType>(player_coordinates.x);
+        const BlockIndexType player_y = static_cast<BlockIndexType>(player_coordinates.y);
+        const BlockIndexType block_x_index = globalCoordinateToTopLevelBlockIndex(player_x, local_x);
+        const BlockIndexType block_y_index = globalCoordinateToTopLevelBlockIndex(player_y, local_y);
         const BlockIndexType block_z_index = globalCoordinateToTopLevelBlockIndex(TopLevelBlock::SIZE, local_z);
         BlockIndexType start_block_x_index = block_x_index - VIEW_DISTANCE;
         BlockIndexType start_block_y_index = block_y_index - VIEW_DISTANCE;
