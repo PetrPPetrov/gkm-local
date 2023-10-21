@@ -9,13 +9,13 @@
 World::Ptr g_world = nullptr;
 
 WorldLineY::WorldLineY() {
-    for (BlockIndexType x = 0; x < WORLD_BLOCK_SIZE_Y; ++x) {
+    for (BlockIndex x = 0; x < WORLD_BLOCK_SIZE_Y; ++x) {
         columns.push_back(std::make_shared<WorldColumn>());
     }
 }
 
 World::World() {
-    for (BlockIndexType x = 0; x < WORLD_BLOCK_SIZE_X; ++x) {
+    for (BlockIndex x = 0; x < WORLD_BLOCK_SIZE_X; ++x) {
         lines.push_back(std::make_shared<WorldLineY>());
     }
 }
@@ -27,12 +27,12 @@ static World::Ptr createFlatWorld() {
     auto empty_block2 = getBlockCached<2>(std::make_shared<Block<2>>(0));
     auto ground_block = getBlockCached<TOP_LEVEL>(std::make_shared<TopLevelBlock>(1));
     World::Ptr new_world = std::make_shared<World>();
-    for (BlockIndexType x = 0; x < WORLD_BLOCK_SIZE_X; ++x) {
+    for (BlockIndex x = 0; x < WORLD_BLOCK_SIZE_X; ++x) {
         auto line = new_world->getLine(x);
-        for (BlockIndexType y = 0; y < WORLD_BLOCK_SIZE_Y; ++y) {
+        for (BlockIndex y = 0; y < WORLD_BLOCK_SIZE_Y; ++y) {
             auto column = line->getColumn(y);
             column->setBlock(0, ground_block);
-            for (BlockIndexType z = 1; z < WORLD_BLOCK_HEIGHT; ++z) {
+            for (BlockIndex z = 1; z < WORLD_BLOCK_HEIGHT; ++z) {
                 column->setBlock(z, empty_block);
             }
         }

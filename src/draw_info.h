@@ -10,7 +10,7 @@
 #include "bgfx_api.h"
 #include "game_logic.h"
 
-constexpr unsigned MATERIAL_MAX = std::numeric_limits<BlockMaterialType>::max() + 1;
+constexpr unsigned MATERIAL_MAX = std::numeric_limits<BlockMaterial>::max() + 1;
 
 struct DrawRefInfo {
     typedef std::shared_ptr<DrawRefInfo> Ptr;
@@ -26,11 +26,11 @@ struct DrawInfo {
 };
 
 struct DrawInstanceInfo {
-    BlockIndexType x, y, z;
+    BlockIndex x, y, z;
 };
 
 struct MaterialDrawInfo {
-    BlockMaterialType material;
+    BlockMaterial material;
     BgfxVertexBufferPtr vertex_buffer;
 };
 

@@ -108,16 +108,16 @@ struct BlockOperationProcessor<0> {
             copy_block = std::make_shared<Block<0>>(*block);
             if (copy_block->entire) {
                 copy_block->entire = false;
-                BlockMaterialType overall_material = copy_block->material.load();
-                for (BlockIndexType i = 0; i < Block<0>::MATERIAL_COUNT; ++i) {
+                BlockMaterial overall_material = copy_block->material.load();
+                for (BlockIndex i = 0; i < Block<0>::MATERIAL_COUNT; ++i) {
                     copy_block->materials[i] = overall_material;
                 }
             }
             auto block_index = operation.z * NESTED_BLOCKS * NESTED_BLOCKS + operation.y * NESTED_BLOCKS + operation.x;
             copy_block->materials[block_index] = operation.material;
             bool all_the_same = true;
-            BlockMaterialType first_material = copy_block->materials[0];
-            for (BlockIndexType i = 1; i < Block<0>::MATERIAL_COUNT; ++i) {
+            BlockMaterial first_material = copy_block->materials[0];
+            for (BlockIndex i = 1; i < Block<0>::MATERIAL_COUNT; ++i) {
                 if (copy_block->materials[i] != first_material) {
                     all_the_same = false;
                     break;
@@ -148,7 +148,7 @@ struct BlockOperationProcessor {
                 copy_block->entire = false;
                 auto sub_level_block = std::make_shared<Block<Level - 1>>(copy_block->material);
                 auto cached_sub_level_block = getCached<Level - 1>(sub_level_block);
-                for (BlockIndexType i = 0; i < Block<Level>::CHILDREN_COUNT; ++i) {
+                for (BlockIndex i = 0; i < Block<Level>::CHILDREN_COUNT; ++i) {
                     copy_block->children[i].write(cached_sub_level_block);
                 }
             }
@@ -159,16 +159,16 @@ struct BlockOperationProcessor {
             sub_operation.x = operation.x % Block<Level - 1>::SIZE;
             sub_operation.y = operation.y % Block<Level - 1>::SIZE;
             sub_operation.z = operation.z % Block<Level - 1>::SIZE;
-            BlockIndexType sub_block_x = operation.x / Block<Level - 1>::SIZE;
-            BlockIndexType sub_block_y = operation.y / Block<Level - 1>::SIZE;
-            BlockIndexType sub_block_z = operation.z / Block<Level - 1>::SIZE;
+            BlockIndex sub_block_x = operation.x / Block<Level - 1>::SIZE;
+            BlockIndex sub_block_y = operation.y / Block<Level - 1>::SIZE;
+            BlockIndex sub_block_z = operation.z / Block<Level - 1>::SIZE;
             auto child_index = sub_block_z * NESTED_BLOCKS * NESTED_BLOCKS + sub_block_y * NESTED_BLOCKS + sub_block_x;
             auto child = copy_block->children[child_index].read();
             copy_block->children[child_index].write(BlockOperationProcessor<Level - 1>::process(child, sub_operation));
             bool all_sub_blocks_same = true;
             auto first_sub_block = copy_block->children[0].read();
             if (first_sub_block->entire) {
-                for (BlockIndexType i = 1; i < Block<Level>::CHILDREN_COUNT; ++i) {
+                for (BlockIndex i = 1; i < Block<Level>::CHILDREN_COUNT; ++i) {
                     if (copy_block->children[i].read().get() != first_sub_block.get()) {
                         all_sub_blocks_same = false;
                         break;
@@ -177,7 +177,7 @@ struct BlockOperationProcessor {
                 if (all_sub_blocks_same) {
                     copy_block->entire = true;
                     copy_block->material = first_sub_block->material.load();
-                    for (BlockIndexType i = 0; i < Block<Level>::CHILDREN_COUNT; ++i) {
+                    for (BlockIndex i = 0; i < Block<Level>::CHILDREN_COUNT; ++i) {
                         copy_block->children[i].write(nullptr);
                     }
                 }
@@ -192,16 +192,16 @@ static inline void processBlockOperation(const BlockOperation& operation) {
     sub_operation.use_level = operation.use_level;
     sub_operation.level = operation.level;
     sub_operation.material = operation.material;
-    BlockIndexType block_x_index = globalCoordinateToTopLevelBlockIndex(operation.x, sub_operation.x);
-    BlockIndexType block_y_index = globalCoordinateToTopLevelBlockIndex(operation.y, sub_operation.y);
-    BlockIndexType block_z_index = globalCoordinateToTopLevelBlockIndex(operation.z, sub_operation.z);
+    BlockIndex block_x_index = coordToBlockIndex<TOP_LEVEL>(operation.x, sub_operation.x);
+    BlockIndex block_y_index = coordToBlockIndex<TOP_LEVEL>(operation.y, sub_operation.y);
+    BlockIndex block_z_index = coordToBlockIndex<TOP_LEVEL>(operation.z, sub_operation.z);
 
     auto line = g_world->getLineByAbsoluteIndex(block_x_index);
     if (line) {
         auto column = line->getColumnByAbsoluteIndex(block_y_index);
         if (column) {
             auto top_block = column->getBlock(block_z_index);
-            BlockMaterialType existing_material = top_block->getMaterial(sub_operation.x, sub_operation.y, sub_operation.z);
+            BlockMaterial existing_material = top_block->getMaterial(sub_operation.x, sub_operation.y, sub_operation.z);
             if (existing_material == operation.material) {
                 // Do nothing.
                 return;
@@ -230,7 +230,7 @@ static void blockOperationThread() {
         } while (g_block_operation_queue.pop(block_operation));
 
         initializeCacheCleaningIterators();
-        for (BlockIndexType i = 0; i < WORLD_BLOCK_SIZE_X; ++i) {
+        for (BlockIndex i = 0; i < WORLD_BLOCK_SIZE_X; ++i) {
             if (!g_is_running) {
                 return;
             }

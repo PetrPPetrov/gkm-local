@@ -20,7 +20,7 @@ struct BlockBase {
     // Indicates that the entire block is filled by one material (or entire empty).
     std::atomic<bool> entire = true;
     // Specifies the material for this block. Usefull only if entire is true.
-    std::atomic<BlockMaterialType> material = 0;
+    std::atomic<BlockMaterial> material = 0;
 
     // Indicates that tessellation request was sent for this block.
     std::atomic<bool> tessellation_request = false;
@@ -30,7 +30,7 @@ struct BlockBase {
     // So, no multi-threaded synchronization is required.
     std::list<DrawInstanceInfo> draw_instance_info;
 
-    BlockBase(BlockMaterialType material_ = 0) {
+    BlockBase(BlockMaterial material_ = 0) {
         material = material_;
     }
 
@@ -42,7 +42,7 @@ struct BlockBase {
     }
 };
 
-constexpr BlockIndexType NESTED_BLOCKS = 8;
+constexpr BlockIndex NESTED_BLOCKS = 8;
 
 // Level 0 = 8 cm
 // Level 1 = 64 cm
@@ -56,23 +56,23 @@ template <>
 struct Block<0> : public BlockBase {
     typedef std::shared_ptr<Block<0>> Ptr;
     typedef std::weak_ptr<Block<0>> WeakPtr;
-    constexpr static BlockIndexType MATERIAL_COUNT = NESTED_BLOCKS * NESTED_BLOCKS * NESTED_BLOCKS;
-    constexpr static BlockIndexType SIZE = NESTED_BLOCKS;
+    constexpr static BlockIndex MATERIAL_COUNT = NESTED_BLOCKS * NESTED_BLOCKS * NESTED_BLOCKS;
+    constexpr static BlockIndex SIZE = NESTED_BLOCKS;
 
-    std::atomic<BlockMaterialType> materials[MATERIAL_COUNT] = { 0 };
+    std::atomic<BlockMaterial> materials[MATERIAL_COUNT] = { 0 };
 
-    Block(BlockMaterialType material_ = 0) : BlockBase(material_) {
+    Block(BlockMaterial material_ = 0) : BlockBase(material_) {
     }
 
     Block(const Block<0>& other) : BlockBase(other) {
         if (!entire) {
-            for (BlockIndexType i = 0; i < MATERIAL_COUNT; ++i) {
+            for (BlockIndex i = 0; i < MATERIAL_COUNT; ++i) {
                 materials[i] = other.materials[i].load();
             }
         }
     }
 
-    BlockMaterialType getMaterial(BlockIndexType x, BlockIndexType y, BlockIndexType z) const {
+    BlockMaterial getMaterial(BlockIndex x, BlockIndex y, BlockIndex z) const {
         if (entire) {
             return material;
         } else {
@@ -85,10 +85,10 @@ struct Block<0> : public BlockBase {
         bool entire_value = entire.load();
         hash.update(entire_value);
         if (entire_value) {
-            BlockMaterialType material_value = material.load();
+            BlockMaterial material_value = material.load();
             hash.update(material_value);
         } else {
-            for (BlockIndexType i = 0; i < MATERIAL_COUNT; ++i) {
+            for (BlockIndex i = 0; i < MATERIAL_COUNT; ++i) {
                 hash.update(materials[i].load());
             }
         }
@@ -101,34 +101,34 @@ struct Block : public BlockBase
 {
     typedef std::shared_ptr<Block<Level>> Ptr;
     typedef std::weak_ptr<Block<Level>> WeakPtr;
-    constexpr static BlockIndexType CHILDREN_COUNT = NESTED_BLOCKS * NESTED_BLOCKS * NESTED_BLOCKS;
-    constexpr static BlockIndexType SIZE = NESTED_BLOCKS * Block<Level - 1>::SIZE;
+    constexpr static BlockIndex CHILDREN_COUNT = NESTED_BLOCKS * NESTED_BLOCKS * NESTED_BLOCKS;
+    constexpr static BlockIndex SIZE = NESTED_BLOCKS * Block<Level - 1>::SIZE;
 
     SpinLocked<typename Block<Level-1>::Ptr> children[CHILDREN_COUNT] = { nullptr };
 
-    Block(BlockMaterialType material_ = 0) : BlockBase(material_) {
+    Block(BlockMaterial material_ = 0) : BlockBase(material_) {
     }
 
     Block(const Block<Level>& other) : BlockBase(other) {
         if (!entire) {
-            for (BlockIndexType i = 0; i < Block<Level>::CHILDREN_COUNT; ++i) {
+            for (BlockIndex i = 0; i < Block<Level>::CHILDREN_COUNT; ++i) {
                 children[i].write(other.children[i].read());
             }
         }
     }
 
-    BlockMaterialType getMaterial(BlockIndexType x, BlockIndexType y, BlockIndexType z) const {
+    BlockMaterial getMaterial(BlockIndex x, BlockIndex y, BlockIndex z) const {
         if (entire) {
             return material;
         }
-        BlockIndexType sub_block_x = x / Block<Level - 1>::SIZE;
-        BlockIndexType sub_block_y = y / Block<Level - 1>::SIZE;
-        BlockIndexType sub_block_z = z / Block<Level - 1>::SIZE;
+        BlockIndex sub_block_x = x / Block<Level - 1>::SIZE;
+        BlockIndex sub_block_y = y / Block<Level - 1>::SIZE;
+        BlockIndex sub_block_z = z / Block<Level - 1>::SIZE;
         auto child = children[sub_block_z * NESTED_BLOCKS * NESTED_BLOCKS + sub_block_y * NESTED_BLOCKS + sub_block_x].read();
         assert(child.get());
-        BlockIndexType inside_sub_block_x = x % Block<Level - 1>::SIZE;
-        BlockIndexType inside_sub_block_y = y % Block<Level - 1>::SIZE;
-        BlockIndexType inside_sub_block_z = z % Block<Level - 1>::SIZE;
+        BlockIndex inside_sub_block_x = x % Block<Level - 1>::SIZE;
+        BlockIndex inside_sub_block_y = y % Block<Level - 1>::SIZE;
+        BlockIndex inside_sub_block_z = z % Block<Level - 1>::SIZE;
         return child->getMaterial(inside_sub_block_x, inside_sub_block_y, inside_sub_block_z);
     }
 
@@ -137,10 +137,10 @@ struct Block : public BlockBase
         bool entire_value = entire.load();
         hash.update(entire_value);
         if (entire_value) {
-            BlockMaterialType material_value = material.load();
+            BlockMaterial material_value = material.load();
             hash.update(material_value);
         } else {
-            for (BlockIndexType i = 0; i < CHILDREN_COUNT; ++i) {
+            for (BlockIndex i = 0; i < CHILDREN_COUNT; ++i) {
                 hash.update(children[i].read().get());
             }
         }
@@ -178,13 +178,15 @@ void executeForAllLevels() {
     ExecutorForAllLevels<Operator, TOP_LEVEL>::execute();
 }
 
-inline BlockIndexType globalCoordinateToTopLevelBlockIndex(BlockIndexType value, BlockIndexType& local) {
-    BlockIndexType result;
+template <std::uint8_t Level>
+inline BlockIndex coordToBlockIndex(BlockIndex value, BlockIndex& local) {
+    BlockIndex result;
     if (value < 0) {
-        result = value / TopLevelBlock::SIZE - 1;
-    } else {
-        result = value / TopLevelBlock::SIZE;
+        result = (value + 1) / Block<Level>::SIZE - 1;
     }
-    local = value - result * TopLevelBlock::SIZE;
+    else {
+        result = value / Block<Level>::SIZE;
+    }
+    local = value - result * Block<Level>::SIZE;
     return result;
 }

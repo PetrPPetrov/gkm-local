@@ -33,10 +33,10 @@ static inline BlockDrawInfo::Ptr getEmptyTessellation() {
     return empty_tessellation;
 }
 
-template <BlockIndexType Size>
-void addSimpleCube(BgfxVertex* vbo, unsigned& vbo_index, BlockIndexType base_x, BlockIndexType base_y, BlockIndexType base_z) {
-    constexpr static BlockIndexType SIZE = Size;
-    constexpr static BlockIndexType coords[8][3] = {
+template <BlockIndex Size>
+void addSimpleCube(BgfxVertex* vbo, unsigned& vbo_index, BlockIndex base_x, BlockIndex base_y, BlockIndex base_z) {
+    constexpr static BlockIndex SIZE = Size;
+    constexpr static BlockIndex coords[8][3] = {
         { 0, 0, 0 },
         { 1, 0, 0 },
         { 1, 1, 0 },
@@ -118,7 +118,7 @@ void tessellateBlock(const typename Block<Level>::Ptr block) {
     for (unsigned z = 0; z < Block<Level>::SIZE; ++z) {
         for (unsigned y = 0; y < Block<Level>::SIZE; ++y) {
             for (unsigned x = 0; x < Block<Level>::SIZE; ++x) {
-                BlockMaterialType cur_material = block->getMaterial(x, y, z);
+                BlockMaterial cur_material = block->getMaterial(x, y, z);
                 if (cur_material != 0) {
                     ++count_per_material[cur_material];
                 }
@@ -143,7 +143,7 @@ void tessellateBlock(const typename Block<Level>::Ptr block) {
     for (unsigned z = 0; z < Block<Level>::SIZE; ++z) {
         for (unsigned y = 0; y < Block<Level>::SIZE; ++y) {
             for (unsigned x = 0; x < Block<Level>::SIZE; ++x) {
-                BlockMaterialType cur_material = block->getMaterial(x, y, z);
+                BlockMaterial cur_material = block->getMaterial(x, y, z);
                 if (cur_material != 0) {
                     addSimpleCube<1>(vbos[cur_material], vbo_indices[cur_material], x, y, z);
                 }
@@ -155,7 +155,7 @@ void tessellateBlock(const typename Block<Level>::Ptr block) {
     for (unsigned cur_material = 1; cur_material < MATERIAL_MAX; ++cur_material) {
         if (count_per_material[cur_material] > 0) {
             MaterialDrawInfo material_draw_info;
-            material_draw_info.material = static_cast<BlockMaterialType>(cur_material);
+            material_draw_info.material = static_cast<BlockMaterial>(cur_material);
             material_draw_info.vertex_buffer = makeBgfxSharedPtr(bgfx::createVertexBuffer(vertex_buffers[cur_material], BgfxVertex::ms_layout));
             block_draw_info->commands.push_back(std::move(material_draw_info));
         }
@@ -165,7 +165,7 @@ void tessellateBlock(const typename Block<Level>::Ptr block) {
 
 template <std::uint8_t Level>
 void processTessellationRequest(const TessellationRequest<Level>& request) {
-    BlockMaterialType material = request.block->material;
+    BlockMaterial material = request.block->material;
     auto& block = request.block;
     if (!block->draw_info.read()) {
         if (block->entire) {

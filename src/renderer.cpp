@@ -229,7 +229,7 @@ template <std::uint8_t Level>
 void collectInstances(
     BlockInstanceRenderInfo<Level>& info,
     const typename Block<Level>::Ptr& block,
-    BlockIndexType base_x, BlockIndexType base_y, BlockIndexType base_z) {
+    BlockIndex base_x, BlockIndex base_y, BlockIndex base_z) {
     if (!block) {
         return;
     }
@@ -238,7 +238,7 @@ void collectInstances(
         return;
     }
     if (block->draw_info.read()) {
-        BlockMaterialType material = block->material;
+        BlockMaterial material = block->material;
         if (block->draw_instance_info.size() == 0) {
             // First time
             info.Blocks.push_back(block);
@@ -246,10 +246,10 @@ void collectInstances(
         block->draw_instance_info.push_back({ base_x, base_y, base_z });
     } else {
         if constexpr (Level > 0) {
-            constexpr BlockIndexType SUB_BLOCK_SIZE = Block<Level - 1>::SIZE;
-            for (BlockIndexType z = 0; z < NESTED_BLOCKS; ++z) {
-                for (BlockIndexType y = 0; y < NESTED_BLOCKS; ++y) {
-                    for (BlockIndexType x = 0; x < NESTED_BLOCKS; ++x) {
+            constexpr BlockIndex SUB_BLOCK_SIZE = Block<Level - 1>::SIZE;
+            for (BlockIndex z = 0; z < NESTED_BLOCKS; ++z) {
+                for (BlockIndex y = 0; y < NESTED_BLOCKS; ++y) {
+                    for (BlockIndex x = 0; x < NESTED_BLOCKS; ++x) {
                         Block<Level - 1>::Ptr child = block->children[z * NESTED_BLOCKS * NESTED_BLOCKS + y * NESTED_BLOCKS + x].read();
                         collectInstances<Level - 1>(info, child, base_x + x * SUB_BLOCK_SIZE, base_y + y * SUB_BLOCK_SIZE, base_z + z * SUB_BLOCK_SIZE);
                     }
@@ -319,23 +319,23 @@ void Renderer::render(int window_width, int window_height) {
     const bool instancing_supported = 0 != (BGFX_CAPS_INSTANCING & caps->supported);
     if (instancing_supported) {
         TopLevelBlockInstanceRenderInfo info;
-        BlockIndexType local_x;
-        BlockIndexType local_y;
-        BlockIndexType local_z;
-        const BlockIndexType player_x = static_cast<BlockIndexType>(player_coordinates.x);
-        const BlockIndexType player_y = static_cast<BlockIndexType>(player_coordinates.y);
-        const BlockIndexType block_x_index = globalCoordinateToTopLevelBlockIndex(player_x, local_x);
-        const BlockIndexType block_y_index = globalCoordinateToTopLevelBlockIndex(player_y, local_y);
-        const BlockIndexType block_z_index = globalCoordinateToTopLevelBlockIndex(TopLevelBlock::SIZE, local_z);
-        BlockIndexType start_block_x_index = block_x_index - VIEW_DISTANCE;
-        BlockIndexType start_block_y_index = block_y_index - VIEW_DISTANCE;
-        BlockIndexType finish_block_x_index = block_x_index + VIEW_DISTANCE;
-        BlockIndexType finish_block_y_index = block_y_index + VIEW_DISTANCE;
+        BlockIndex local_x;
+        BlockIndex local_y;
+        BlockIndex local_z;
+        const BlockIndex player_x = static_cast<BlockIndex>(player_coordinates.x);
+        const BlockIndex player_y = static_cast<BlockIndex>(player_coordinates.y);
+        const BlockIndex block_x_index = coordToBlockIndex<TOP_LEVEL>(player_x, local_x);
+        const BlockIndex block_y_index = coordToBlockIndex<TOP_LEVEL>(player_y, local_y);
+        const BlockIndex block_z_index = coordToBlockIndex<TOP_LEVEL>(TopLevelBlock::SIZE, local_z);
+        BlockIndex start_block_x_index = block_x_index - VIEW_DISTANCE;
+        BlockIndex start_block_y_index = block_y_index - VIEW_DISTANCE;
+        BlockIndex finish_block_x_index = block_x_index + VIEW_DISTANCE;
+        BlockIndex finish_block_y_index = block_y_index + VIEW_DISTANCE;
 
-        constexpr BlockIndexType NORTH_EAST = 45;
-        constexpr BlockIndexType SOUTH_EAST = 135;
-        constexpr BlockIndexType SOUTH_WEST = 225;
-        constexpr BlockIndexType NORTH_WEST = 315;
+        constexpr BlockIndex NORTH_EAST = 45;
+        constexpr BlockIndex SOUTH_EAST = 135;
+        constexpr BlockIndex SOUTH_WEST = 225;
+        constexpr BlockIndex NORTH_WEST = 315;
 
         // By default draw all blocks which are nearer than VIEW_DISTANCE distance.
         // & - means the player position
@@ -394,13 +394,13 @@ void Renderer::render(int window_width, int window_height) {
             // +------+------+
         }
 
-        for (BlockIndexType x = start_block_x_index; x <= finish_block_x_index; ++x) {
+        for (BlockIndex x = start_block_x_index; x <= finish_block_x_index; ++x) {
             WorldLineY::Ptr cur_world_line = g_world->getLineByAbsoluteIndex(x);
             if (cur_world_line) {
-                for (BlockIndexType y = start_block_y_index; y <= finish_block_y_index; ++y) {
+                for (BlockIndex y = start_block_y_index; y <= finish_block_y_index; ++y) {
                     WorldColumn::Ptr cur_world_column = cur_world_line->getColumnByAbsoluteIndex(y);
                     if (cur_world_column) {
-                        for (BlockIndexType z = 0; z < WORLD_BLOCK_HEIGHT; ++z) {
+                        for (BlockIndex z = 0; z < WORLD_BLOCK_HEIGHT; ++z) {
                             TopLevelBlock::Ptr block = cur_world_column->getBlock(z);
                             collectInstances<TOP_LEVEL>(info, block, x * TopLevelBlock::SIZE, y * TopLevelBlock::SIZE, z * TopLevelBlock::SIZE);
                         }

@@ -10,8 +10,8 @@ struct BlockOperation {
     bool finish = false;
     bool use_level = false;
     std::uint8_t level = 0;
-    BlockMaterialType material;
-    BlockIndexType x, y, z;
+    BlockMaterial material;
+    BlockIndex x, y, z;
 };
 
 void startBlockOperationThread();

@@ -114,6 +114,9 @@ compile_fs_shader(fs_unlit)
 
 add_executable(${PROJECT_NAME} WIN32
 ${PROJECT_SOURCE_DIR}/src/gkm_local.h
+${PROJECT_SOURCE_DIR}/src/gkm_vec.h
+${PROJECT_SOURCE_DIR}/src/gkm_ray.h
+${PROJECT_SOURCE_DIR}/src/gkm_ray.cpp
 ${PROJECT_SOURCE_DIR}/src/spin_lock.h
 ${PROJECT_SOURCE_DIR}/src/request_queue.h
 ${PROJECT_SOURCE_DIR}/src/block.h
